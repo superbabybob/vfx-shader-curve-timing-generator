@@ -1,6 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════
  * State Module — Centralized application state
+ * Categories grouped by mathematical equation types
  * ═══════════════════════════════════════════════════════
  */
 
@@ -30,12 +31,13 @@ export const state = {
   slashHistory: [],
   linearHistory: [],
 
+  // Mathematical equation category pills
   categories: [
     { id: 'all', label: 'ทั้งหมด (All)' },
-    { id: 'easing', label: 'Easing & Transition' },
-    { id: 'flash', label: 'Flash & Glow (0→1→0)' },
-    { id: 'physics', label: 'Impact & Overshoot' },
-    { id: 'oscillation', label: 'Loops & Pulses' },
-    { id: 'stagger', label: 'Stagger & Steps' }
+    { id: 'polynomial', label: '📐 พหุนาม (xⁿ, Quad, Cubic, Bézier)' },
+    { id: 'hermite', label: '〰️ Hermite (Smoothstep, S-Curve)' },
+    { id: 'trig', label: '🔄 ตรีโกณมิติ (Sine, Cosine, Wave)' },
+    { id: 'exp', label: '⚡ เอกซ์โพเนนเชียล (exp, Damped Decay)' },
+    { id: 'piecewise', label: '🪜 แยกช่วง & สเต็ป (clamp, frac, floor)' }
   ]
 };

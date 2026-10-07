@@ -120,6 +120,26 @@ window.onSearchPresets = function(val) {
 
 // ── Preset Grid ──
 
+function renderPresetCard(preset) {
+  const card = document.createElement('div');
+  const isActive = state.selectedPresetId === preset.id;
+  card.id = `preset-card-${preset.id}`;
+  card.className = `vfx-preset${isActive ? ' vfx-preset--active' : ''}`;
+  card.onclick = () => loadPreset(preset);
+
+  card.innerHTML = `
+    ${generatePresetThumbnailSVG(preset)}
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+        <span class="vfx-preset__name line-clamp-1">${preset.name}</span>
+        <span class="vfx-preset__badge">${preset.badge}</span>
+      </div>
+      <p class="vfx-preset__desc line-clamp-1" style="margin-top:2px">${preset.desc}</p>
+    </div>
+  `;
+  return card;
+}
+
 function renderPresetGrid() {
   presetGrid.innerHTML = '';
 
@@ -139,24 +159,38 @@ function renderPresetGrid() {
     return;
   }
 
-  filtered.forEach(preset => {
-    const card = document.createElement('div');
-    const isActive = state.selectedPresetId === preset.id;
-    card.id = `preset-card-${preset.id}`;
-    card.className = `vfx-preset${isActive ? ' vfx-preset--active' : ''}`;
-    card.onclick = () => loadPreset(preset);
+  // If a specific category is chosen, display direct grid
+  if (state.activeCategory !== 'all') {
+    filtered.forEach(preset => {
+      presetGrid.appendChild(renderPresetCard(preset));
+    });
+    return;
+  }
 
-    card.innerHTML = `
-      ${generatePresetThumbnailSVG(preset)}
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
-          <span class="vfx-preset__name line-clamp-1">${preset.name}</span>
-          <span class="vfx-preset__badge">${preset.badge}</span>
-        </div>
-        <p class="vfx-preset__desc line-clamp-1" style="margin-top:2px">${preset.desc}</p>
-      </div>
+  // When "All" is active, group items with category section dividers
+  const categoryGroups = state.categories.filter(c => c.id !== 'all');
+
+  categoryGroups.forEach(cat => {
+    const groupItems = filtered.filter(p => p.cat === cat.id);
+    if (groupItems.length === 0) return;
+
+    // Category Header Banner spanning full width
+    const sectionHeader = document.createElement('div');
+    sectionHeader.style.cssText = 'grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 2px; margin-top: 6px; border-bottom: 1px solid var(--vfx-border);';
+    sectionHeader.innerHTML = `
+      <span style="font-size: 11px; font-weight: 700; color: var(--vfx-action); letter-spacing: 0.02em;">
+        ${cat.label}
+      </span>
+      <span class="font-mono" style="font-size: 10px; color: var(--vfx-muted); background: var(--vfx-inset); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--vfx-border);">
+        ${groupItems.length}
+      </span>
     `;
-    presetGrid.appendChild(card);
+    presetGrid.appendChild(sectionHeader);
+
+    // Append presets belonging to this mathematical group
+    groupItems.forEach(preset => {
+      presetGrid.appendChild(renderPresetCard(preset));
+    });
   });
 }
 
