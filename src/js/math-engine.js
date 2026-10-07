@@ -5,7 +5,9 @@
  * ═══════════════════════════════════════════════════════
  */
 
+import { expressionWithPowerOptions } from './power-options.js';
 import { state } from './state.js';
+import { evaluateExpression } from './expression-graph-builder.js';
 
 // ── Cubic Bézier Evaluation ──
 
@@ -26,56 +28,19 @@ export function solveBezierYForX(t, p0, p1, p2, p3) {
   if (t <= p0.x) return p0.y;
   if (t >= p3.x) return p3.y;
 
-  let u = t;
-  for (let i = 0; i < 8; i++) {
-    const pt = evalBezier(u, p0, p1, p2, p3);
-    const dx = pt.x - t;
-    if (Math.abs(dx) < 1e-4) return pt.y;
-
-    const omt = 1 - u;
-    const dxdt = 3 * omt * omt * (p1.x - p0.x) +
-                 6 * omt * u * (p2.x - p1.x) +
-                 3 * u * u * (p3.x - p2.x);
-    if (Math.abs(dxdt) < 1e-5) break;
-    u -= dx / dxdt;
-    u = Math.max(0, Math.min(1, u));
+  let lo = 0, hi = 1;
+  for (let i=0;i<24;i++) {
+    const u=(lo+hi)/2;
+    if (evalBezier(u,p0,p1,p2,p3).x < t) lo=u; else hi=u;
   }
-  return evalBezier(u, p0, p1, p2, p3).y;
+  return evalBezier((lo+hi)/2,p0,p1,p2,p3).y;
 }
 
-// ── Custom Expression Evaluator ──
-
-export function evalCustomExpression(tVal, expr) {
+export function evalCustomExpression(tVal, expr, paramValues = {}) {
   try {
-    const saturate = (v) => Math.min(1, Math.max(0, v));
-    const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-    const smoothstep = (min, max, x) => {
-      const v = Math.min(1, Math.max(0, (x - min) / (max - min)));
-      return v * v * (3 - 2 * v);
-    };
-    const pow = (a, b) => Math.pow(Math.max(0, a), b);
-    const frac = (x) => x - Math.floor(x);
-    const floor = Math.floor;
-    const ceil = Math.ceil;
-    const sin = Math.sin;
-    const cos = Math.cos;
-    const abs = Math.abs;
-    const min = Math.min;
-    const max = Math.max;
-    const exp = Math.exp;
-    const PI = Math.PI;
-
-    const fn = new Function(
-      't', 'saturate', 'clamp', 'smoothstep', 'pow', 'frac',
-      'floor', 'ceil', 'sin', 'cos', 'abs', 'min', 'max', 'exp', 'PI',
-      `return (${expr});`
-    );
-    const result = fn(tVal, saturate, clamp, smoothstep, pow, frac,
-                      floor, ceil, sin, cos, abs, min, max, exp, PI);
-    return isNaN(result) ? 0 : result;
-  } catch {
-    return 0;
-  }
+    const result = evaluateExpression(expr, tVal, paramValues);
+    return Number.isFinite(result) ? result : 0;
+  } catch { return 0; }
 }
 
 // ── Unified Graph Evaluator ──
@@ -83,9 +48,10 @@ export function evalCustomExpression(tVal, expr) {
 export function evaluateGraph(t) {
   if (state.mode === 'bezier') {
     const { p0, p1, p2, p3 } = state.handles;
-    return solveBezierYForX(t, p0, p1, p2, p3);
+    return evalBezier(t, p0, p1, p2, p3).y;
   } else {
-    return evalCustomExpression(t, state.customExpr);
+    const exprToEval = state.parameterizedExpr || state.customExpr;
+    return evalCustomExpression(t, expressionWithPowerOptions(exprToEval,state.customParams,state.multiplyIntegerPowers), state.customParams);
   }
 }
 

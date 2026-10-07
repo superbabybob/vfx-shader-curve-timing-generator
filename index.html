@@ -75,7 +75,7 @@
           <div>
             <span class="vfx-card__section-label">
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--vfx-action);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-              VFX Curve Presets (<span id="preset-count" class="font-mono" style="color: var(--vfx-action);">24</span> สูตร)
+              VFX Curve Presets (<span id="preset-count" class="font-mono" style="color: var(--vfx-action);">48</span> สูตร)
             </span>
             <p style="font-size: 11px; color: var(--vfx-muted); margin-top: 2px;">เลือกกราฟเพื่อดูสมการ โหนด และตัวอย่างแอนิเมชันทันที</p>
           </div>
@@ -102,7 +102,7 @@
           <div>
             <h2 class="vfx-card__title">
               <span class="vfx-status-dot vfx-status-dot--active"></span>
-              Curve Graph Editor ($X = t \in [0, 1]$, $Y = Output$)
+              Curve Graph Editor (X = t ∈ [0, 1], Y = Output)
             </h2>
             <p style="font-size: 11px; color: var(--vfx-muted); margin-top: 2px;" id="editor-hint">
               ลาก Handle <span style="color: var(--vfx-curve-handle-1); font-weight: 700;">P1</span> และ <span style="color: var(--vfx-curve-handle-2); font-weight: 700;">P2</span> เพื่อปรับแต่งเส้นโค้ง
@@ -116,12 +116,17 @@
         <!-- Interactive Canvas Container -->
         <div class="vfx-canvas-wrap cursor-crosshair" style="height: 320px;">
           <canvas id="curveCanvas"></canvas>
+          <div class="vfx-canvas-badge" style="bottom: 8px; left: 8px; display: flex; flex-wrap: wrap; max-width: calc(100% - 16px); gap: 6px; align-items: center; pointer-events: auto;">
+            <span style="font-size: 10px;">ลากพื้นที่ว่างเพื่อเลื่อน · Scroll เพื่อซูม</span>
+            <button id="fit-curve-view" class="vfx-btn vfx-btn--ghost" style="font-size: 10px; padding: 2px 6px; min-height: 20px;">Fit Curve</button>
+            <button id="reset-curve-view" class="vfx-btn vfx-btn--ghost" style="font-size: 10px; padding: 2px 6px; min-height: 20px;">Reset View</button>
+          </div>
 
           <!-- Current Scrubber Tracker Info -->
           <div class="vfx-canvas-info">
-            <span>Time $t$: <span id="info-t" class="font-mono" style="color: var(--vfx-curve-handle-1); font-weight: 700;">0.00</span></span>
+            <span>Time t: <span id="info-t" class="font-mono" style="color: var(--vfx-curve-handle-1); font-weight: 700;">0.00</span></span>
             <span style="color: var(--vfx-border);">|</span>
-            <span>Output $y$: <span id="info-y" class="font-mono" style="color: var(--vfx-curve-handle-2); font-weight: 700;">0.00</span></span>
+            <span>Output y: <span id="info-y" class="font-mono" style="color: var(--vfx-curve-handle-2); font-weight: 700;">0.00</span></span>
           </div>
         </div>
 
@@ -130,29 +135,29 @@
           <div>
             <label>P0 (Start):</label>
             <div style="display: flex; gap: 4px;">
-              <input type="number" step="0.05" id="p0x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
-              <input type="number" step="0.05" id="p0y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.01" id="p0x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
+              <input type="number" step="0.01" id="p0y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
             </div>
           </div>
           <div class="handle-p1">
             <label>P1 (Control 1):</label>
             <div style="display: flex; gap: 4px;">
-              <input type="number" step="0.05" id="p1x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
-              <input type="number" step="0.05" id="p1y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.01" id="p1x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
+              <input type="number" step="0.01" id="p1y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
             </div>
           </div>
           <div class="handle-p2">
             <label>P2 (Control 2):</label>
             <div style="display: flex; gap: 4px;">
-              <input type="number" step="0.05" id="p2x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
-              <input type="number" step="0.05" id="p2y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.01" id="p2x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
+              <input type="number" step="0.01" id="p2y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
             </div>
           </div>
           <div>
             <label>P3 (End):</label>
             <div style="display: flex; gap: 4px;">
-              <input type="number" step="0.05" id="p3x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
-              <input type="number" step="0.05" id="p3y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.01" id="p3x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
+              <input type="number" step="0.01" id="p3y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput(this.id)">
             </div>
           </div>
         </div>
@@ -161,17 +166,29 @@
         <div id="expression-controls" class="hidden" style="display: flex; flex-direction: column; gap: 8px; background: var(--vfx-surface); padding: 12px; border-radius: var(--vfx-radius-card); border: 1px solid var(--vfx-border);">
           <label style="font-size: 12px; font-weight: 600; color: var(--vfx-text-2); display: flex; justify-content: space-between; align-items: center;">
             <span>พิมพ์สูตรคณิตศาสตร์ Shader (ตัวแปร <code class="font-mono" style="color: var(--vfx-action);">t</code>):</span>
-            <span style="font-size: 10px; color: var(--vfx-muted);">pow, smoothstep, sin, frac, saturate</span>
+            <span style="font-size: 10px; color: var(--vfx-muted);">pow, smoothstep, sin, frac, saturate · PI, TAU</span>
           </label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="custom-formula-input" value="pow(t, 2.0)" 
               class="vfx-input vfx-input--mono" style="flex: 1;"
-              placeholder="e.g. 4.0 * t * (1.0 - t)">
+              placeholder="e.g. 4.0 * t * (1.0 - t) or pow(t, p1)">
             <button onclick="applyCustomFormula()" class="vfx-btn vfx-btn--primary">
               Plot Curve
             </button>
           </div>
           <p id="formula-error" class="hidden" style="font-size: 11px; color: var(--vfx-danger);"></p>
+
+          <!-- Dynamic Parameter Tuning Sliders -->
+          <div id="custom-params-container" class="hidden" style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--vfx-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--vfx-action); display: flex; align-items: center; gap: 4px;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                Curve Parameters (ปรับค่าสด):
+              </span>
+              <span style="font-size: 10px; color: var(--vfx-muted);">เลื่อนสไลเดอร์เพื่อดูผลทันที</span>
+            </div>
+            <div id="custom-params-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -202,7 +219,7 @@
         <div class="vfx-canvas-wrap" style="height: 208px; display: flex; align-items: center; justify-content: center;">
           <canvas id="particleCanvas"></canvas>
           <div class="vfx-canvas-badge" style="bottom: 10px; right: 12px; font-family: 'Fira Code', monospace;">
-            Output $y$: <span style="color: var(--vfx-curve-handle-2); font-weight: 700;" id="vfx-val-badge">0.00</span>
+            Output y: <span style="color: var(--vfx-curve-handle-2); font-weight: 700;" id="vfx-val-badge">0.00</span>
           </div>
         </div>
 
@@ -215,7 +232,7 @@
             </button>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; font-family: 'Fira Code', monospace; color: var(--vfx-muted);">
-                <span>Particle Timeline $t$: <b id="scrubber-label" style="color: var(--vfx-action);">0.00</b></span>
+                <span>Particle Timeline t: <b id="scrubber-label" style="color: var(--vfx-action);">0.00</b></span>
                 <span>Speed: <b id="speed-label" style="color: var(--vfx-text-2);">1.0x</b></span>
               </div>
               <input type="range" id="scrubber" min="0" max="1" step="0.002" value="0" style="width: 100%; height: 6px; cursor: pointer;" oninput="onScrub(this.value)">
@@ -231,7 +248,7 @@
             </div>
             <div class="vfx-sim-option">
               <span>Stagger:</span>
-              <input type="range" id="stagger-slider" min="0" max="0.3" step="0.02" value="0.08" style="width: 60px; height: 4px;" oninput="state.particleStagger=parseFloat(this.value)">
+              <input type="range" id="stagger-slider" min="0" max="0.3" step="0.02" value="0.08" style="width: 60px; height: 4px;" oninput="setParticleStagger(this.value)">
             </div>
             <div class="vfx-sim-option" style="grid-column: span 2; justify-content: space-around;">
               <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="apply-pos" checked> Position</label>
@@ -252,47 +269,45 @@
             </span>
           </div>
 
+          <label style="display: flex; align-items: center; gap: 6px; color: var(--vfx-muted); font-size: 11px;" title="ปัดเลขกำลังคงที่หรือ parameter เป็นจำนวนเต็ม แล้วใช้ Multiply; เลขกำลังถูกตรึงในโค้ด ต้องส่งออกใหม่เมื่อเปลี่ยนค่า">
+            <input id="multiply-integer-powers" type="checkbox" onchange="setMultiplyIntegerPowers(this.checked)"> Integer powers → Multiply
+          </label>
+          <label style="font-size: 11px; color: var(--vfx-muted);" title="Enable only for values that must change inside the engine. Unchecked: bake the tuned values for cheaper shader math.">
+            <input id="expose-shader-params" type="checkbox" onchange="setExposeShaderParams(this.checked)"> Runtime parameters
+          </label>
           <!-- Extended Export Tabs -->
           <div class="vfx-tabs">
             <button onclick="switchTab('node-graph')" id="tab-node-graph" class="vfx-tab vfx-tab--active">
               <span class="vfx-tab__dot"></span> Math Node Graph
             </button>
-            <button onclick="switchTab('hlsl')" id="tab-hlsl" class="vfx-tab">HLSL / GLSL</button>
+            <button onclick="switchTab('hlsl')" id="tab-hlsl" class="vfx-tab">HLSL</button>
+            <button onclick="switchTab('glsl')" id="tab-glsl" class="vfx-tab">GLSL</button>
             <button onclick="switchTab('compact')" id="tab-compact" class="vfx-tab">Compact Math</button>
             <button onclick="switchTab('unity')" id="tab-unity" class="vfx-tab">Shader Function</button>
             <button onclick="switchTab('css')" id="tab-css" class="vfx-tab">CSS</button>
           </div>
         </div>
 
+        <p id="integer-power-hint" class="hidden" style="font-size: 11px; color: var(--vfx-muted); margin-bottom: 8px;">Integer powers: ปัดเลขกำลังเป็นจำนวนเต็มและใช้ Multiply เลขกำลังถูกตรึงในโค้ด ต้องส่งออกใหม่เมื่อเปลี่ยนค่า รองรับเลขกำลังคงที่หรือ parameter โดยตรง</p>
+
         <!-- Visual Node Graph Container -->
         <div id="node-graph-view" style="display: flex; flex-direction: column; gap: 12px;">
-          <div class="vfx-canvas-wrap vfx-node-grid" style="height: 320px;">
+          <div id="node-graph-canvas" class="vfx-canvas-wrap vfx-node-grid" style="height: 380px;">
             <svg id="nodeGraphSvg" class="cursor-grab"></svg>
             <div class="vfx-canvas-badge" style="top: 10px; right: 10px; display: flex; align-items: center; gap: 8px;">
               <span id="node-engine-badge" style="font-weight: 700; color: var(--vfx-action);">Universal Math Graph</span>
               <span style="color: var(--vfx-border);">|</span>
-              <span style="color: var(--vfx-success); font-family: 'Fira Code', monospace;">Unity & Unreal Native Nodes</span>
+              <span style="color: var(--vfx-success); font-family: 'Fira Code', monospace;">Expression Nodes</span>
             </div>
             <!-- Pan/Zoom hint & Reset buttons -->
             <div class="vfx-canvas-badge" style="bottom: 10px; left: 10px; display: flex; align-items: center; gap: 8px; pointer-events: auto;">
               <span>ลากเพื่อ Pan | Scroll เพื่อ Zoom</span>
+              <button id="expand-node-graph" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 20px; font-size: 10px;" aria-label="Expand node graph">Expand View</button>
               <button onclick="resetNodeGraphView()" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 20px; font-size: 10px;">Reset View</button>
             </div>
           </div>
 
-          <!-- Step-by-Step Node Recipe Box -->
-          <div class="vfx-recipe">
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600;">
-              <span style="display: flex; align-items: center; gap: 6px; color: var(--vfx-action);">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                Step-by-Step Node Recipe (<span id="recipe-target-name">Unity Shader Graph & Unreal Material</span>):
-              </span>
-              <button onclick="copyRecipeText()" class="vfx-btn vfx-btn--ghost" style="padding: 2px 8px; font-size: 11px;">
-                Copy Instructions
-              </button>
-            </div>
-            <ol id="node-recipe-list" class="vfx-recipe__list"></ol>
-          </div>
+
         </div>
 
         <!-- Code Block View -->
@@ -309,7 +324,7 @@
           <span class="vfx-tip__icon">💡</span>
           <div>
             <span class="vfx-tip__title" id="preset-tip-title">วิธีนำไปต่อในกราฟ:</span>
-            <span id="preset-tip-content">นำผลลัพธ์ $y$ ไปเสียบเข้ากับ Particle Color Alpha, หรือ Lerp เข้ากับ Scale และ Emissive Intensity</span>
+            <span id="preset-tip-content">นำผลลัพธ์ y ไปเสียบเข้ากับ Particle Color Alpha, หรือ Lerp เข้ากับ Scale และ Emissive Intensity</span>
           </div>
         </div>
       </div>

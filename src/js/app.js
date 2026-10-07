@@ -5,13 +5,16 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+import { integerExponentParameters, roundLiteralPowerExponents } from './power-options.js';
 import { state } from './state.js';
 import { presets } from './presets.js';
-import { evaluateGraph, evalCustomExpression, solveBezierYForX, toScreen, toWorld } from './math-engine.js';
+import { evaluateGraph, evalCustomExpression, toScreen, toWorld } from './math-engine.js';
+import { setupCurveNavigation } from './curve-navigation.js';
 import { renderCurveCanvas } from './renderers/curve-canvas.js';
 import { renderParticleSimulation } from './renderers/particle-sim.js';
 import { renderNodeGraph, setupNodeGraphInteractions, resetNodeGraphView, initNodeGraphDOM } from './renderers/node-graph.js';
-import { generateCodeSnippets } from './code-gen.js';
+import { generateCodeSnippets, getBezierCompactFormula } from './code-gen.js';
+import { evaluateExpression, extractExpressionParameters, roundExpressionNumbers } from './expression-graph-builder.js';
 
 // Attach presets to state
 state.presets = presets;
@@ -33,18 +36,18 @@ const presetCount = document.getElementById('preset-count');
 const categoryPills = document.getElementById('category-pills');
 const formulaInput = document.getElementById('custom-formula-input');
 const formulaError = document.getElementById('formula-error');
+const customParamsContainer = document.getElementById('custom-params-container');
+const customParamsList = document.getElementById('custom-params-list');
 const tipTitle = document.getElementById('preset-tip-title');
 const tipContent = document.getElementById('preset-tip-content');
 const nodeGraphSvg = document.getElementById('nodeGraphSvg');
-const nodeRecipeList = document.getElementById('node-recipe-list');
-const recipeTargetName = document.getElementById('recipe-target-name');
 const nodeEngineBadge = document.getElementById('node-engine-badge');
 const nodeGraphView = document.getElementById('node-graph-view');
 const codeTextView = document.getElementById('code-text-view');
 const vfxValBadge = document.getElementById('vfx-val-badge');
 
 // Init node graph DOM refs
-initNodeGraphDOM(nodeGraphSvg, nodeRecipeList, recipeTargetName, nodeEngineBadge);
+initNodeGraphDOM(nodeGraphSvg, nodeEngineBadge);
 
 // ── Preset Thumbnail SVG ──
 
@@ -65,15 +68,7 @@ function generatePresetThumbnailSVG(preset) {
   for (let i = 0; i <= samples; i++) {
     const t = i / samples;
     let y = 0;
-    if (preset.type === 'bezier') {
-      const p0 = { x: preset.p0[0], y: preset.p0[1] };
-      const p1 = { x: preset.p1[0], y: preset.p1[1] };
-      const p2 = { x: preset.p2[0], y: preset.p2[1] };
-      const p3 = { x: preset.p3[0], y: preset.p3[1] };
-      y = solveBezierYForX(t, p0, p1, p2, p3);
-    } else {
-      y = evalCustomExpression(t, preset.expr);
-    }
+    y = evalCustomExpression(t, preset.expr);
 
     const sx = toSvgX(t).toFixed(1);
     const sy = Math.max(2, Math.min(svgH - 2, toSvgY(y))).toFixed(1);
@@ -155,7 +150,10 @@ function renderPresetGrid() {
   presetCount.textContent = filtered.length;
 
   if (filtered.length === 0) {
-    presetGrid.innerHTML = `<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--vfx-muted);font-size:12px;">ไม่พบพรีเซ็ตที่ตรงกับ "${state.searchQuery}"</div>`;
+    const empty = document.createElement('div');
+    empty.style.cssText = 'grid-column:1/-1;padding:24px;text-align:center';
+    empty.textContent = `ไม่พบพรีเซ็ตที่ตรงกับ "${state.searchQuery}"`;
+    presetGrid.appendChild(empty);
     return;
   }
 
@@ -194,8 +192,45 @@ function renderPresetGrid() {
   });
 }
 
+function normExpr(s) {
+  return (s || '').replace(/\s+/g, '').replace(/(\d+)\.0+(?!\d)/g, '$1').toLowerCase();
+}
+
+function updateBezierButtonVisibility() {
+  const bezierBtn = document.getElementById('mode-bezier-btn');
+  if (!bezierBtn) return;
+  if(state.mode === 'bezier') { bezierBtn.classList.remove('hidden'); return; }
+
+  // 1. If active preset exists, check its type
+  let matchedPreset = state.presets.find(p => p.id === state.selectedPresetId);
+
+  // 2. If no preset selected by id, check if current expression matches any preset
+  if (!matchedPreset && state.customExpr) {
+    const curNorm = normExpr(state.customExpr);
+    matchedPreset = state.presets.find(p => normExpr(p.expr) === curNorm);
+  }
+
+  // 3. If matched a non-bezier preset, or in expression mode without bezier match, hide it
+  if (matchedPreset) {
+    if (matchedPreset.type !== 'bezier') {
+      bezierBtn.classList.add('hidden');
+    } else {
+      bezierBtn.classList.remove('hidden');
+    }
+  } else {
+    // Custom edited expression cannot be mapped to simple cubic bezier handles
+    if (state.mode === 'expression') {
+      bezierBtn.classList.add('hidden');
+    } else {
+      bezierBtn.classList.remove('hidden');
+    }
+  }
+}
+
 function highlightActivePresetCard(id) {
   state.selectedPresetId = id;
+  updateBezierButtonVisibility();
+
   state.presets.forEach(p => {
     const el = document.getElementById(`preset-card-${p.id}`);
     if (!el) return;
@@ -221,6 +256,11 @@ function initParticles() {
 }
 
 // ── Particle Count ──
+
+window.setParticleStagger = function(value) {
+  state.particleStagger = Number(value);
+  initParticles();
+};
 
 window.setParticleCount = function(n) {
   state.particleCount = n;
@@ -256,8 +296,8 @@ window.setVfxMotionMode = function(mode) {
 // ── Outputs & Tab Switching ──
 
 function updateOutputs() {
-  const snippets = generateCodeSnippets();
-  if (codeOutput) {
+  const snippets = state.activeTab === 'node-graph' ? null : generateCodeSnippets();
+  if (codeOutput && snippets) {
     codeOutput.textContent = snippets[state.activeTab] || snippets.hlsl;
   }
 
@@ -273,7 +313,7 @@ function updateOutputs() {
 
 window.switchTab = function(tab) {
   state.activeTab = tab;
-  const allTabs = ['node-graph', 'hlsl', 'compact', 'unity', 'css'];
+  const allTabs = ['node-graph', 'hlsl', 'glsl', 'compact', 'unity', 'css'];
   allTabs.forEach(t => {
     const btn = document.getElementById(`tab-${t}`);
     if (!btn) return;
@@ -284,88 +324,38 @@ window.switchTab = function(tab) {
 
 // ── B\u00e9zier Handle Interaction ──
 
-function getPointerDistance(sx, sy, p) {
-  const pt = toScreen(canvas, p.x, p.y);
-  const dx = sx - pt.x;
-  const dy = sy - pt.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
+setupCurveNavigation(canvas,{
+  render:()=>renderCurveCanvas(canvas,ctx),
+  onHandleChange:()=>{highlightActivePresetCard(null);syncHandleInputs();scheduleOutputs();}
+});
 
-function onPointerDown(e) {
-  if (state.mode !== 'bezier') return;
-  const rect = canvas.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  const sx = clientX - rect.left;
-  const sy = clientY - rect.top;
-
-  const handles = ['p1', 'p2', 'p0', 'p3'];
-  const hitRadius = 24;
-
-  for (const h of handles) {
-    if (getPointerDistance(sx, sy, state.handles[h]) <= hitRadius) {
-      state.activeDrag = h;
-      window.addEventListener('mousemove', onPointerMove);
-      window.addEventListener('mouseup', onPointerUp);
-      window.addEventListener('touchmove', onPointerMove, { passive: false });
-      window.addEventListener('touchend', onPointerUp);
-      e.preventDefault();
-      return;
-    }
-  }
-}
-
-function onPointerMove(e) {
-  if (!state.activeDrag) return;
-  const rect = canvas.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  const sx = clientX - rect.left;
-  const sy = clientY - rect.top;
-
-  const world = toWorld(canvas, sx, sy);
-  state.handles[state.activeDrag].x = Math.round(world.x * 100) / 100;
-  state.handles[state.activeDrag].y = Math.round(world.y * 100) / 100;
-  highlightActivePresetCard(null);
-
-  syncHandleInputs();
-  updateOutputs();
-  renderCurveCanvas(canvas, ctx);
-}
-
-function onPointerUp() {
-  state.activeDrag = null;
-  window.removeEventListener('mousemove', onPointerMove);
-  window.removeEventListener('mouseup', onPointerUp);
-  window.removeEventListener('touchmove', onPointerMove);
-  window.removeEventListener('touchend', onPointerUp);
-}
-
-canvas.addEventListener('mousedown', onPointerDown);
-canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+['p0x','p1x','p2x','p3x'].forEach(id=>{const input=document.getElementById(id);input.readOnly=true;input.title='Fixed X: direct polynomial evaluation for realtime shaders';});
 
 // ── Handle Input Sync ──
 
 function syncHandleInputs() {
-  document.getElementById('p0x').value = state.handles.p0.x.toFixed(2);
-  document.getElementById('p0y').value = state.handles.p0.y.toFixed(2);
-  document.getElementById('p1x').value = state.handles.p1.x.toFixed(2);
-  document.getElementById('p1y').value = state.handles.p1.y.toFixed(2);
-  document.getElementById('p2x').value = state.handles.p2.x.toFixed(2);
-  document.getElementById('p2y').value = state.handles.p2.y.toFixed(2);
-  document.getElementById('p3x').value = state.handles.p3.x.toFixed(2);
-  document.getElementById('p3y').value = state.handles.p3.y.toFixed(2);
+  document.getElementById('p0x').value = Number(state.handles.p0.x.toFixed(2));
+  document.getElementById('p0y').value = Number(state.handles.p0.y.toFixed(2));
+  document.getElementById('p1x').value = Number(state.handles.p1.x.toFixed(2));
+  document.getElementById('p1y').value = Number(state.handles.p1.y.toFixed(2));
+  document.getElementById('p2x').value = Number(state.handles.p2.x.toFixed(2));
+  document.getElementById('p2y').value = Number(state.handles.p2.y.toFixed(2));
+  document.getElementById('p3x').value = Number(state.handles.p3.x.toFixed(2));
+  document.getElementById('p3y').value = Number(state.handles.p3.y.toFixed(2));
 }
 
-window.updateHandleFromInput = function() {
-  state.handles.p0.x = parseFloat(document.getElementById('p0x').value) || 0;
-  state.handles.p0.y = parseFloat(document.getElementById('p0y').value) || 0;
-  state.handles.p1.x = parseFloat(document.getElementById('p1x').value) || 0;
-  state.handles.p1.y = parseFloat(document.getElementById('p1y').value) || 0;
-  state.handles.p2.x = parseFloat(document.getElementById('p2x').value) || 0;
-  state.handles.p2.y = parseFloat(document.getElementById('p2y').value) || 0;
-  state.handles.p3.x = parseFloat(document.getElementById('p3x').value) || 0;
-  state.handles.p3.y = parseFloat(document.getElementById('p3y').value) || 0;
+function normalizeHandles() {
+  ['p0','p1','p2','p3'].forEach((key,i)=>{state.handles[key].x=i/3;});
+}
+window.updateHandleFromInput = function(id) {
+  const keys = id ? [id] : ['p0x','p0y','p1x','p1y','p2x','p2y','p3x','p3y'];
+  keys.forEach(key => {
+    const value=Number(document.getElementById(key).value);
+    if (Number.isFinite(value)) state.handles[key.slice(0,2)][key[2]]=Number(value.toFixed(2));
+  });
+  normalizeHandles();
+  syncHandleInputs();
+  highlightActivePresetCard(null);
   updateOutputs();
   renderCurveCanvas(canvas, ctx);
 };
@@ -408,7 +398,8 @@ window.togglePlay = function() {
 };
 
 window.onScrub = function(val) {
-  state.currentTime = parseFloat(val);
+  state.currentTime = Math.max(0, Math.min(1, Number(val)));
+  state.slashHistory = []; state.linearHistory = [];
   state.isPlaying = false;
   document.getElementById('play-icon').classList.remove('hidden');
   document.getElementById('pause-icon').classList.add('hidden');
@@ -417,6 +408,8 @@ window.onScrub = function(val) {
 // ── Mode Switching ──
 
 window.setMode = function(mode) {
+  if (mode === 'bezier' && state.mode === 'expression' && document.getElementById('mode-bezier-btn').classList.contains('hidden')) return;
+  const previousMode = state.mode;
   state.mode = mode;
   const bezierBtn = document.getElementById('mode-bezier-btn');
   const exprBtn = document.getElementById('mode-expr-btn');
@@ -424,35 +417,139 @@ window.setMode = function(mode) {
   const exprControls = document.getElementById('expression-controls');
   const hint = document.getElementById('editor-hint');
 
+  updateBezierButtonVisibility();
+
   if (mode === 'bezier') {
-    bezierBtn.className = 'vfx-tab vfx-tab--active';
-    exprBtn.className = 'vfx-tab';
-    bezierControls.classList.remove('hidden');
-    exprControls.classList.add('hidden');
-    hint.innerHTML = 'ลาก Handle <span style="color:var(--vfx-curve-handle-1);font-weight:700">P1</span> และ <span style="color:var(--vfx-curve-handle-2);font-weight:700">P2</span> เพื่อปรับแต่งเส้นโค้ง';
+    bezierBtn?.classList.add('vfx-tab--active');
+    exprBtn?.classList.remove('vfx-tab--active');
+    normalizeHandles();
+    syncHandleInputs();
+    bezierControls?.classList.remove('hidden');
+    exprControls?.classList.add('hidden');
+    hint.innerHTML = 'ลาก Handle <span style="color:var(--vfx-curve-handle-1);font-weight:700">P1</span> และ <span style="color:var(--vfx-curve-handle-2);font-weight:700">P2</span> เพื่อปรับ Y • X คงที่สำหรับ shader ที่ไม่มีลูป';
   } else {
-    exprBtn.className = 'vfx-tab vfx-tab--active';
-    bezierBtn.className = 'vfx-tab';
-    bezierControls.classList.add('hidden');
-    exprControls.classList.remove('hidden');
+    exprBtn?.classList.add('vfx-tab--active');
+    bezierBtn?.classList.remove('vfx-tab--active');
+    bezierControls?.classList.add('hidden');
+    exprControls?.classList.remove('hidden');
     hint.innerHTML = 'โหมด Custom Expression: กราฟและโหนดจะถูกแปลงตามสมการคณิตศาสตร์ที่ระบุ';
+
+    // Synchronize expression formula from active preset or current Bézier curve
+    const activePreset = state.presets.find(p => p.id === state.selectedPresetId);
+    if (previousMode !== 'expression' && activePreset && activePreset.expr) {
+      state.customExpr = activePreset.expr;
+    } else if (previousMode !== 'expression') {
+      state.customExpr = getBezierCompactFormula();
+    }
+    if (formulaInput) {
+      formulaInput.value = state.customExpr;
+    }
+    if (formulaError) {
+      formulaError.classList.add('hidden');
+    }
+    if(previousMode !== 'expression') state.customParams = {};
+    renderCustomParameterSliders();
   }
   updateOutputs();
   renderCurveCanvas(canvas, ctx);
 };
+
+// ── Dynamic Expression Parameter Sliders ──
+
+function renderCustomParameterSliders() {
+  if (!customParamsContainer || !customParamsList) return;
+
+  if (state.mode !== 'expression') {
+    customParamsContainer.classList.add('hidden');
+    return;
+  }
+
+  const roundedExpression=roundExpressionNumbers(state.customExpr);
+  const expressionTemplate=state.multiplyIntegerPowers?roundLiteralPowerExponents(roundedExpression):roundedExpression;
+  state.customExpr=expressionTemplate;formulaInput.value=expressionTemplate;
+  const detectedParams = extractExpressionParameters(expressionTemplate);
+  state.parameterizedExpr = detectedParams.parameterizedExpr || state.customExpr;
+
+  if (detectedParams.length === 0) {
+    customParamsContainer.classList.add('hidden');
+    state.customParams = {};
+    return;
+  }
+
+  customParamsContainer.classList.remove('hidden');
+  customParamsList.innerHTML = '';
+
+  const integerParams=state.multiplyIntegerPowers?integerExponentParameters(state.parameterizedExpr):new Set();
+  state.customParams = Object.fromEntries(detectedParams.map(p=>[p.name, Number((state.customParams[p.name] ?? p.defaultVal).toFixed(2))]));
+  integerParams.forEach(name=>{state.customParams[name]=Math.round(state.customParams[name]);});
+  const syncExpression=()=>{
+    let displayExpr=expressionTemplate;
+    detectedParams.filter(p=>p.start!==undefined).sort((a,b)=>b.start-a.start).forEach(p=>{
+      displayExpr=displayExpr.slice(0,p.start)+String(state.customParams[p.name])+displayExpr.slice(p.end);
+    });
+    state.customExpr=displayExpr;formulaInput.value=displayExpr;
+  };
+  syncExpression();
+  detectedParams.forEach(param => {
+    // Preserve current value if already tuned, else initialize with defaultVal
+    if (state.customParams[param.name] === undefined) {
+      state.customParams[param.name] = param.defaultVal;
+    }
+    const currentVal = state.customParams[param.name];
+    const integer=integerParams.has(param.name);
+    const sliderMin=integer?Math.floor(param.min):param.min;
+    const sliderMax=integer?Math.ceil(param.max):param.max;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 11px;';
+
+    row.innerHTML = `
+      <span class="font-mono" style="min-width: 60px; font-weight: 600; color: var(--vfx-curve-handle-2);">${param.name}:</span>
+      <input type="range" min="${sliderMin}" max="${sliderMax}" step="${integer?1:param.step}" value="${currentVal}"
+        style="flex: 1; height: 5px; accent-color: var(--vfx-action); cursor: pointer;"
+        id="slider-param-${param.name}">
+      <span class="font-mono" id="val-param-${param.name}" style="min-width: 36px; text-align: right; color: var(--vfx-text);">${Number(currentVal).toFixed(2)}</span>
+    `;
+
+    const slider = row.querySelector(`#slider-param-${param.name}`);
+    slider.oninput = (e) => {
+      const newVal = integer?Math.round(Number(e.target.value)):Number(Number(e.target.value).toFixed(2));
+      e.target.value=String(newVal);
+      state.customParams[param.name] = newVal;
+      const label = row.querySelector(`#val-param-${param.name}`);
+      if (label) label.textContent = newVal.toFixed(2);
+
+      syncExpression();
+
+      highlightActivePresetCard(null);
+      state.slashHistory = []; state.linearHistory = [];
+      // Instantly update curve, particles, node graph, and code preview
+      updateOutputs();
+      renderCurveCanvas(canvas, ctx);
+    };
+
+    customParamsList.appendChild(row);
+  });
+}
 
 // ── Custom Formula ──
 
 window.applyCustomFormula = function() {
   const val = formulaInput.value.trim();
   try {
-    const testRes = evalCustomExpression(0.5, val);
-    if (isNaN(testRes)) throw new Error('Result is NaN');
+    const normalized=roundExpressionNumbers(val);
+    const definitions = extractExpressionParameters(normalized);
+    const defaults = Object.fromEntries(definitions.map(p=>[p.name,p.defaultVal]));
+    const testRes = evaluateExpression(definitions.parameterizedExpr, 0.5, defaults);
+    if (!Number.isFinite(testRes)) throw new Error('Result is not finite at t=0.5');
     formulaError.classList.add('hidden');
-    state.customExpr = val;
+    state.customExpr = normalized;
+    state.mode = 'expression';
+    state.customParams = {};
     highlightActivePresetCard(null);
     tipTitle.textContent = 'สมการแบบกำหนดเอง:';
-    tipContent.textContent = val;
+    tipContent.textContent = normalized;
+    renderCustomParameterSliders();
     updateOutputs();
     renderCurveCanvas(canvas, ctx);
   } catch (err) {
@@ -464,22 +561,33 @@ window.applyCustomFormula = function() {
 // ── Load Preset ──
 
 function loadPreset(preset) {
+  state.customParams = {}; state.parameterizedExpr = '';
+  state.slashHistory = []; state.linearHistory = [];
   highlightActivePresetCard(preset.id);
   tipTitle.textContent = `วิธีนำ ${preset.name} ไปต่อในกราฟ:`;
   tipContent.textContent = preset.tip || preset.desc;
 
+  // Always keep formulaInput and customExpr in sync with the selected preset
+  if (preset.expr) {
+    state.customExpr = preset.expr;
+    if (formulaInput) formulaInput.value = preset.expr;
+    if (formulaError) formulaError.classList.add('hidden');
+  }
+
   if (preset.type === 'bezier') {
-    setMode('bezier');
+
     state.handles.p0 = { x: preset.p0[0], y: preset.p0[1] };
     state.handles.p1 = { x: preset.p1[0], y: preset.p1[1] };
     state.handles.p2 = { x: preset.p2[0], y: preset.p2[1] };
     state.handles.p3 = { x: preset.p3[0], y: preset.p3[1] };
+    normalizeHandles();
     syncHandleInputs();
-  } else {
-    setMode('expression');
-    formulaInput.value = preset.expr;
-    state.customExpr = preset.expr;
   }
+  state.customParams = {};
+  setMode('expression');
+  if (formulaInput) formulaInput.value = preset.expr;
+  state.customExpr = preset.expr;
+  renderCustomParameterSliders();
   updateOutputs();
   renderCurveCanvas(canvas, ctx);
 }
@@ -500,44 +608,33 @@ window.showToast = function(msg) {
 
 // ── Copy ──
 
-window.copyCurrentCode = function() {
-  const code = codeOutput.textContent;
-  navigator.clipboard?.writeText(code).then(() => {
-    showToast('คัดลอกโค้ดลงคลิปบอร์ดแล้ว!');
-  }).catch(() => {
-    // Fallback
-    const dummy = document.createElement('textarea');
-    document.body.appendChild(dummy);
-    dummy.value = code;
-    dummy.select();
-    document.execCommand('copy');
-    document.body.removeChild(dummy);
-    showToast('คัดลอกโค้ดลงคลิปบอร์ดแล้ว!');
-  });
-};
-
-window.copyRecipeText = function() {
-  import('./node-graph-model.js').then(mod => {
-    const model = mod.generateNodeGraphModel();
-    const text = '// Step-by-Step Universal Math Node Recipe (Unity / Unreal):\n' +
-      model.recipe.map((r, i) => `${i + 1}. ${r}`).join('\n');
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('คัดลอกคำแนะนำการต่อโหนดแล้ว!');
-      });
-    } else {
-      const dummy = document.createElement('textarea');
-      document.body.appendChild(dummy);
-      dummy.value = text;
-      dummy.select();
-      document.execCommand('copy');
-      document.body.removeChild(dummy);
-      showToast('คัดลอกคำแนะนำการต่อโหนดแล้ว!');
-    }
-  });
-};
-
+async function copyText(text, message) {
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const input = document.createElement('textarea');
+    input.value = text; document.body.appendChild(input); input.select();
+    const ok = document.execCommand('copy'); input.remove();
+    if (!ok) { showToast('ไม่สามารถคัดลอกได้ กรุณาคัดลอกข้อความด้วยตนเอง'); return; }
+  }
+  showToast(message);
+}
+window.copyCurrentCode = () => copyText(codeOutput.textContent, 'คัดลอกโค้ดลงคลิปบอร์ดแล้ว!');
 window.resetNodeGraphView = resetNodeGraphView;
+window.setMultiplyIntegerPowers = value => {
+  state.multiplyIntegerPowers=value;
+  document.getElementById('integer-power-hint').classList.toggle('hidden',!value);
+  renderCustomParameterSliders();
+  state.slashHistory=[];state.linearHistory=[];
+  updateOutputs();renderCurveCanvas(canvas,ctx);
+};
+window.setExposeShaderParams = value => {state.exposeShaderParams=value;updateOutputs();};
+let pendingOutputFrame=null;
+function scheduleOutputs(){
+  if(pendingOutputFrame!==null)return;
+  pendingOutputFrame=requestAnimationFrame(()=>{pendingOutputFrame=null;updateOutputs();});
+}
 
 // ── Resize Handler ──
 

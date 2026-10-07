@@ -6,17 +6,21 @@
  */
 
 export const state = {
-  mode: 'bezier',
+  mode: 'expression',
+  exposeShaderParams: false,
+  multiplyIntegerPowers: false,
   selectedPresetId: 'smoothstep',
   activeCategory: 'all',
   searchQuery: '',
   handles: {
     p0: { x: 0.0, y: 0.0 },
-    p1: { x: 0.42, y: 0.0 },
-    p2: { x: 0.58, y: 1.0 },
+    p1: { x: 1/3, y: 0.0 },
+    p2: { x: 2/3, y: 1.0 },
     p3: { x: 1.0, y: 1.0 }
   },
   customExpr: 'smoothstep(0.0, 1.0, t)',
+  parameterizedExpr: 'smoothstep(param1, param2, t)',
+  customParams: {param1:0,param2:1},
   activeTab: 'node-graph',
   currentTime: 0.0,
   isPlaying: true,

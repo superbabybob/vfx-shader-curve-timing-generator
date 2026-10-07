@@ -567,30 +567,6 @@ input[type="range"] {
   border: 1px solid var(--vfx-border);
 }
 
-/* ── Recipe steps ── */
-.vfx-recipe {
-  background: var(--vfx-surface);
-  border: 1px solid var(--vfx-border);
-  border-radius: var(--vfx-radius-card);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vfx-recipe__list {
-  font-size: 11px;
-  font-family: 'Fira Code', monospace;
-  color: var(--vfx-text-2);
-  list-style: decimal inside;
-  line-height: 1.65;
-  padding-left: 4px;
-}
-
-.vfx-recipe__list li + li {
-  margin-top: 4px;
-}
-
 /* ── Theme toggle ── */
 .vfx-theme-toggle {
   width: 32px;
@@ -615,4 +591,12 @@ input[type="range"] {
 input[type="checkbox"] {
   accent-color: var(--vfx-action);
   border-radius: 3px;
+}
+
+/* Give long graphs the full display while retaining pan and zoom controls. */
+#node-graph-canvas:fullscreen {
+  width: 100vw;
+  height: 100vh !important;
+  border-radius: 0;
+  background-color: var(--vfx-inset);
 }

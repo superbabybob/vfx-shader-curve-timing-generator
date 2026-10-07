@@ -41,14 +41,14 @@ export function renderParticleSimulation(particleCanvas, pctx) {
 
   // --- SWORD SLASH ---
   if (state.vfxMode === 'slash') {
-    renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyScale, applyAlpha, colorPrimary);
+    renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyPos, applyScale, applyAlpha, colorPrimary);
     return;
   }
 
   // --- CORE EMITTER & RADIAL PARTICLES ---
   const coreY = Math.max(0, mainY);
   const coreRadius = applyScale ? (8 + coreY * 18) : 14;
-  const coreAlpha = applyAlpha ? Math.min(1, Math.max(0.1, mainY)) : 0.8;
+  const coreAlpha = applyAlpha ? Math.min(1, Math.max(0, mainY)) : 0.8;
 
   pctx.save();
   pctx.fillStyle = `rgba(76, 154, 255, ${coreAlpha * 0.25})`;
@@ -69,7 +69,7 @@ export function renderParticleSimulation(particleCanvas, pctx) {
   // Multi-particle burst / orbit / float
   state.particles.forEach(p => {
     let pt = mainT - p.staggerPhase;
-    if (pt < 0) pt += 1.0;
+    pt = ((pt % 1) + 1) % 1;
     const py = evaluateGraph(pt);
 
     let px = centerX;
@@ -80,11 +80,11 @@ export function renderParticleSimulation(particleCanvas, pctx) {
       px = centerX + Math.cos(p.angle) * dist;
       pyPos = centerY + Math.sin(p.angle) * dist;
     } else if (state.vfxMode === 'orbit') {
-      const spinAngle = p.angle + pt * Math.PI * 2 * p.spinSpeed;
+      const spinAngle = p.angle + (applyPos ? py : pt) * Math.PI * 2 * p.spinSpeed;
       px = centerX + Math.cos(spinAngle) * dist;
       pyPos = centerY + Math.sin(spinAngle) * dist * 0.65;
     } else if (state.vfxMode === 'float') {
-      px = centerX + Math.sin(p.angle * 2 + pt * 6) * 35;
+      px = centerX + Math.sin(p.angle * 2 + (applyPos ? py : pt) * 6) * 35;
       pyPos = centerY + 65 - dist * 1.6;
     }
 
@@ -141,7 +141,7 @@ function renderLinear1D(pctx, w, h, centerY, mainT, mainY, applyPos, applyScale,
   const clampedY = applyPos ? mainY : mainT;
   const currentPx = trackStartX + trackLen * clampedY;
 
-  state.linearHistory.push({ x: currentPx, y: trackY, t: mainT, valY: mainY });
+  if (state.isPlaying) state.linearHistory.push({ x: currentPx, y: trackY, t: mainT, valY: mainY });
   if (state.linearHistory.length > 24 || mainT < 0.02) {
     if (mainT < 0.02) state.linearHistory = [];
     else state.linearHistory.shift();
@@ -158,7 +158,7 @@ function renderLinear1D(pctx, w, h, centerY, mainT, mainY, applyPos, applyScale,
   }
 
   const pRadius = applyScale ? Math.max(3, 5 + mainY * 9) : 8;
-  const pOpacity = applyAlpha ? Math.min(1, Math.max(0.1, mainY)) : 0.95;
+  const pOpacity = applyAlpha ? Math.min(1, Math.max(0, mainY)) : 0.95;
 
   pctx.fillStyle = '#ffffff';
   pctx.shadowColor = colorPrimary;
@@ -171,7 +171,7 @@ function renderLinear1D(pctx, w, h, centerY, mainT, mainY, applyPos, applyScale,
   pctx.restore();
 }
 
-function renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyScale, applyAlpha, colorPrimary) {
+function renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyPos, applyScale, applyAlpha, colorPrimary) {
   const slashOriginX = centerX - 15;
   const slashOriginY = centerY + 35;
   const radius = Math.min(w, h) * 0.46;
@@ -179,11 +179,11 @@ function renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyScale, app
   const startAngle = -Math.PI * 0.90;
   const sweepRange = Math.PI * 1.35;
 
-  const currentAngle = startAngle + mainY * sweepRange;
-  const pAlpha = applyAlpha ? Math.min(1, Math.max(0.08, mainY)) : 0.95;
+  const currentAngle = startAngle + (applyPos ? mainY : mainT) * sweepRange;
+  const pAlpha = applyAlpha ? Math.min(1, Math.max(0, mainY)) : 0.95;
   const bladeScale = applyScale ? Math.max(0.35, 0.45 + mainY * 0.75) : 1.0;
 
-  state.slashHistory.push({
+  if (state.isPlaying) state.slashHistory.push({
     angle: currentAngle,
     y: mainY,
     alpha: pAlpha,

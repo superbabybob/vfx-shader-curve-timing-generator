@@ -37,35 +37,25 @@ export function renderCurveCanvas(canvas, ctx) {
   ctx.fillStyle = colorBoxBg;
   ctx.fillRect(boxP0.x, boxP0.y, boxP1.x - boxP0.x, boxP1.y - boxP0.y);
 
-  // Grid steps
-  ctx.strokeStyle = colorGrid;
-  ctx.lineWidth = 1;
-  for (let xStep = 0.0; xStep <= 1.05; xStep += 0.25) {
-    const pA = _toScreen(xStep, view.minY);
-    const pB = _toScreen(xStep, view.maxY);
-    ctx.beginPath();
-    ctx.moveTo(pA.x, pA.y);
-    ctx.lineTo(pB.x, pB.y);
-    ctx.stroke();
-
-    ctx.fillStyle = colorMuted;
-    ctx.font = '10px Fira Code';
-    const labelPos = _toScreen(xStep, 0);
-    ctx.fillText(xStep.toFixed(2), labelPos.x - 12, labelPos.y + 15);
+  // Adaptive ticks cover the visible world, including offscreen overshoot values.
+  const ticks=(min,max,pixels)=>{
+    const raw=(max-min)/Math.max(2,pixels/75),scale=10**Math.floor(Math.log10(raw));
+    const unit=raw/scale,step=(unit<=1?1:unit<=2?2:unit<=2.5?2.5:unit<=5?5:10)*scale;
+    const result=[];
+    for(let i=Math.ceil(min/step);i<=Math.floor(max/step) && result.length<100;i++)result.push(Number((i*step).toPrecision(10)));
+    return result;
+  };
+  ctx.strokeStyle=colorGrid;ctx.lineWidth=1;ctx.fillStyle=colorMuted;ctx.font='10px Fira Code';
+  const origin=_toScreen(0,0);
+  for(const x of ticks(view.minX,view.maxX,w-view.padding*2)){
+    const top=_toScreen(x,view.maxY),bottom=_toScreen(x,view.minY);
+    ctx.beginPath();ctx.moveTo(top.x,top.y);ctx.lineTo(bottom.x,bottom.y);ctx.stroke();
+    ctx.fillText(String(x),top.x-12,Math.max(48,Math.min(h-40,origin.y+15)));
   }
-
-  for (let yStep = 0.0; yStep <= 1.05; yStep += 0.25) {
-    const pA = _toScreen(view.minX, yStep);
-    const pB = _toScreen(view.maxX, yStep);
-    ctx.beginPath();
-    ctx.moveTo(pA.x, pA.y);
-    ctx.lineTo(pB.x, pB.y);
-    ctx.stroke();
-
-    ctx.fillStyle = colorMuted;
-    ctx.font = '10px Fira Code';
-    const labelPos = _toScreen(0, yStep);
-    ctx.fillText(yStep.toFixed(2), labelPos.x - 28, labelPos.y + 3);
+  for(const y of ticks(view.minY,view.maxY,h-view.padding*2)){
+    const left=_toScreen(view.minX,y),right=_toScreen(view.maxX,y);
+    ctx.beginPath();ctx.moveTo(left.x,left.y);ctx.lineTo(right.x,right.y);ctx.stroke();
+    ctx.fillText(String(y),Math.max(4,Math.min(w-42,origin.x-28)),left.y+3);
   }
 
   // Main Axes

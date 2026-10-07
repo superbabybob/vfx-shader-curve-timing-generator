@@ -10,10 +10,11 @@ A modular web workbench for designing, visualizing, and exporting timing curves,
 
 ## Features
 
-- **24 VFX Curve Presets**: Easing, Flash & Glow, Physics/Impact, Oscillations, and Multi-phase Stagger curves.
-- **Interactive Bézier Editor**: 4-point handle manipulation with real-time curve evaluation.
+- **48 VFX Curve Presets**: Easing, Flash & Glow, Physics/Impact, Oscillations, and Multi-phase Stagger curves.
+- **Polynomial Bézier Editor**: Y-only handle editing with fixed X and loop-free Horner evaluation.
 - **Live Particle Simulation**: Radial Burst, 1D Track, Sword Slash VFX, Vortex Orbit, and Floating particles.
 - **Visual Node Graph**: Interactive SVG representation of shader math nodes with Pan and Zoom.
+- **Realtime Optimization**: baked constants by default, shared multiplies for integer powers, constant folding and optional runtime parameters.
 - **Shader Code Export**: Direct export to HLSL/GLSL, Unity Shader Function, Compact Math, and CSS timing functions.
 - **Tempo Workbench UI**: Clean, data-dense neutral charcoal interface designed for graphics and technical artists.
 
@@ -41,7 +42,7 @@ Once hosted via GitHub Pages, visit:
     │   └── components.css     # Modular UI component styles
     └── js/
         ├── state.js           # Centralized reactive state
-        ├── presets.js         # Library of 24 VFX curves
+        ├── presets.js         # Library of 48 VFX curves
         ├── math-engine.js     # Bézier math & expression evaluators
         ├── node-graph-model.js# Node graph generator & step-by-step recipes
         ├── code-gen.js        # Shader code generator (HLSL, Unity, CSS)
@@ -67,3 +68,16 @@ npx serve .
 ```
 
 Then open `http://localhost:8000` in your browser.
+
+
+## Verification
+
+The app still runs without a build step or runtime dependencies. Development tests use Node.js and Playwright:
+
+```sh
+npm install
+npm test
+npm run test:browser
+```
+
+Browser tests use Microsoft Edge on Windows; elsewhere install Chromium with `npx playwright install chromium`. See [AUDIT.md](AUDIT.md) for the documentation audit and validation limits.
