@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VFX Shader Curve & Timing Generator — Tempo Workbench</title>
+  
+  <!-- Tempo Workbench CSS Tokens & Components -->
+  <link rel="stylesheet" href="src/css/variables.css">
+  <link rel="stylesheet" href="src/css/base.css">
+  <link rel="stylesheet" href="src/css/components.css">
+  
+  <style>
+    /* Utility & state classes */
+    .hidden { display: none !important; }
+    
+    .cursor-crosshair { cursor: crosshair; }
+    .cursor-grab { cursor: grab; }
+    .cursor-grab:active { cursor: grabbing; }
+    
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    
+    .scroll-y {
+      overflow-y: auto;
+      max-height: 360px;
+      padding-right: 4px;
+    }
+  </style>
+</head>
+
+<body class="vfx-app-shell">
+  <!-- Top Persistent Workbench Header -->
+  <header class="vfx-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="vfx-header__logo">
+        f(t)
+      </div>
+      <div>
+        <h1 class="vfx-header__title">
+          VFX Shader Curve & Timing Generator
+        </h1>
+        <p class="vfx-header__subtitle">เครื่องมือสร้างสูตร Timing Curve, Interactive Bézier, Node Graph Visualizer สำหรับ Unity & Unreal Engine</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="vfx-tabs">
+        <button id="mode-bezier-btn" onclick="setMode('bezier')" class="vfx-tab vfx-tab--active">
+          🎛️ Bézier Handles
+        </button>
+        <button id="mode-expr-btn" onclick="setMode('expression')" class="vfx-tab">
+          ✏️ Custom Expression
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Canvas Grid -->
+  <main class="vfx-main">
+
+    <!-- LEFT COLUMN: Preset Library & Curve Editor -->
+    <section class="vfx-col-left" style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Preset Library Card with Live SVG Curves -->
+      <div class="vfx-card">
+        <div class="vfx-card__header">
+          <div>
+            <span class="vfx-card__section-label">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--vfx-action);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              VFX Curve Presets (<span id="preset-count" class="font-mono" style="color: var(--vfx-action);">24</span> สูตร)
+            </span>
+            <p style="font-size: 11px; color: var(--vfx-muted); margin-top: 2px;">เลือกกราฟเพื่อดูสมการ โหนด และตัวอย่างแอนิเมชันทันที</p>
+          </div>
+          
+          <!-- Search Input -->
+          <div style="position: relative; width: 100%; max-width: 210px;">
+            <input type="text" id="preset-search" placeholder="ค้นหาพรีเซ็ต (เช่น bell, quad)..." 
+              class="vfx-input" style="padding-right: 28px;"
+              oninput="onSearchPresets(this.value)">
+            <svg width="14" height="14" style="position: absolute; right: 10px; top: 9px; color: var(--vfx-muted); pointer-events: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px;" id="category-pills"></div>
+
+        <!-- Presets Visual Grid -->
+        <div class="grid-2 scroll-y" id="preset-grid"></div>
+      </div>
+
+      <!-- Interactive Curve Graph Editor Canvas -->
+      <div class="vfx-card">
+        <div class="vfx-card__header">
+          <div>
+            <h2 class="vfx-card__title">
+              <span class="vfx-status-dot vfx-status-dot--active"></span>
+              Curve Graph Editor ($X = t \in [0, 1]$, $Y = Output$)
+            </h2>
+            <p style="font-size: 11px; color: var(--vfx-muted); margin-top: 2px;" id="editor-hint">
+              ลาก Handle <span style="color: var(--vfx-curve-handle-1); font-weight: 700;">P1</span> และ <span style="color: var(--vfx-curve-handle-2); font-weight: 700;">P2</span> เพื่อปรับแต่งเส้นโค้ง
+            </p>
+          </div>
+          <button onclick="resetCurrentCurve()" class="vfx-btn vfx-btn--ghost" style="font-size: 11px;">
+            Reset (Linear)
+          </button>
+        </div>
+
+        <!-- Interactive Canvas Container -->
+        <div class="vfx-canvas-wrap cursor-crosshair" style="height: 320px;">
+          <canvas id="curveCanvas"></canvas>
+
+          <!-- Current Scrubber Tracker Info -->
+          <div class="vfx-canvas-info">
+            <span>Time $t$: <span id="info-t" class="font-mono" style="color: var(--vfx-curve-handle-1); font-weight: 700;">0.00</span></span>
+            <span style="color: var(--vfx-border);">|</span>
+            <span>Output $y$: <span id="info-y" class="font-mono" style="color: var(--vfx-curve-handle-2); font-weight: 700;">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- Bézier 4-point Inputs -->
+        <div id="bezier-controls" class="vfx-bezier-grid">
+          <div>
+            <label>P0 (Start):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" step="0.05" id="p0x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p0y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div class="handle-p1">
+            <label>P1 (Control 1):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" step="0.05" id="p1x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p1y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div class="handle-p2">
+            <label>P2 (Control 2):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" step="0.05" id="p2x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p2y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div>
+            <label>P3 (End):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" step="0.05" id="p3x" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p3y" class="vfx-input vfx-input--mono vfx-input--sm" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Expression Editor -->
+        <div id="expression-controls" class="hidden" style="display: flex; flex-direction: column; gap: 8px; background: var(--vfx-surface); padding: 12px; border-radius: var(--vfx-radius-card); border: 1px solid var(--vfx-border);">
+          <label style="font-size: 12px; font-weight: 600; color: var(--vfx-text-2); display: flex; justify-content: space-between; align-items: center;">
+            <span>พิมพ์สูตรคณิตศาสตร์ Shader (ตัวแปร <code class="font-mono" style="color: var(--vfx-action);">t</code>):</span>
+            <span style="font-size: 10px; color: var(--vfx-muted);">pow, smoothstep, sin, frac, saturate</span>
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="custom-formula-input" value="pow(t, 2.0)" 
+              class="vfx-input vfx-input--mono" style="flex: 1;"
+              placeholder="e.g. 4.0 * t * (1.0 - t)">
+            <button onclick="applyCustomFormula()" class="vfx-btn vfx-btn--primary">
+              Plot Curve
+            </button>
+          </div>
+          <p id="formula-error" class="hidden" style="font-size: 11px; color: var(--vfx-danger);"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Multi-Particle Simulator + Shader Code / Node Visualizer -->
+    <section class="vfx-col-right" style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Multi-Particle Live VFX Simulation -->
+      <div class="vfx-card">
+        <div class="vfx-card__header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="vfx-status-dot vfx-status-dot--live"></span>
+            <h2 class="vfx-card__title">Particle VFX Live Simulation</h2>
+          </div>
+          
+          <!-- Simulation Motion Mode Selector -->
+          <div class="vfx-tabs" style="overflow-x: auto; max-width: 100%;">
+            <button onclick="setVfxMotionMode('burst')" id="mode-burst-btn" class="vfx-tab vfx-tab--active">Burst Radial</button>
+            <button onclick="setVfxMotionMode('linear1d')" id="mode-linear1d-btn" class="vfx-tab">Left → Right (1P)</button>
+            <button onclick="setVfxMotionMode('slash')" id="mode-slash-btn" class="vfx-tab">⚔️ Sword Slash</button>
+            <button onclick="setVfxMotionMode('orbit')" id="mode-orbit-btn" class="vfx-tab">Vortex Orbit</button>
+            <button onclick="setVfxMotionMode('float')" id="mode-float-btn" class="vfx-tab">Float Up</button>
+            <button onclick="setVfxMotionMode('core')" id="mode-core-btn" class="vfx-tab">Core Orb</button>
+          </div>
+        </div>
+
+        <!-- Simulation Viewport Canvas -->
+        <div class="vfx-canvas-wrap" style="height: 208px; display: flex; align-items: center; justify-content: center;">
+          <canvas id="particleCanvas"></canvas>
+          <div class="vfx-canvas-badge" style="bottom: 10px; right: 12px; font-family: 'Fira Code', monospace;">
+            Output $y$: <span style="color: var(--vfx-curve-handle-2); font-weight: 700;" id="vfx-val-badge">0.00</span>
+          </div>
+        </div>
+
+        <!-- Particle Simulation Tuning Controls -->
+        <div class="vfx-sim-controls">
+          <div class="vfx-sim-toolbar">
+            <button id="play-btn" onclick="togglePlay()" class="vfx-btn" style="min-width: 36px; padding: 6px;">
+              <svg id="play-icon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="pause-icon" width="16" height="16" fill="currentColor" class="hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; font-family: 'Fira Code', monospace; color: var(--vfx-muted);">
+                <span>Particle Timeline $t$: <b id="scrubber-label" style="color: var(--vfx-action);">0.00</b></span>
+                <span>Speed: <b id="speed-label" style="color: var(--vfx-text-2);">1.0x</b></span>
+              </div>
+              <input type="range" id="scrubber" min="0" max="1" step="0.002" value="0" style="width: 100%; height: 6px; cursor: pointer;" oninput="onScrub(this.value)">
+            </div>
+          </div>
+          
+          <div class="vfx-sim-options">
+            <div class="vfx-sim-option">
+              <span>Count:</span>
+              <button onclick="setParticleCount(8)" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 22px; font-size: 11px;" id="p-count-8">8</button>
+              <button onclick="setParticleCount(12)" class="vfx-btn vfx-btn--primary" style="padding: 2px 6px; min-height: 22px; font-size: 11px;" id="p-count-12">12</button>
+              <button onclick="setParticleCount(16)" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 22px; font-size: 11px;" id="p-count-16">16</button>
+            </div>
+            <div class="vfx-sim-option">
+              <span>Stagger:</span>
+              <input type="range" id="stagger-slider" min="0" max="0.3" step="0.02" value="0.08" style="width: 60px; height: 4px;" oninput="state.particleStagger=parseFloat(this.value)">
+            </div>
+            <div class="vfx-sim-option" style="grid-column: span 2; justify-content: space-around;">
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="apply-pos" checked> Position</label>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="apply-scale" checked> Scale</label>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="apply-alpha" checked> Alpha</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shader Code Export & Interactive Node Graph Section -->
+      <div class="vfx-card" style="flex: 1;">
+        <div class="vfx-card__header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="vfx-card__section-label">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--vfx-action);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+              Shader Code & Node Graph Export
+            </span>
+          </div>
+
+          <!-- Extended Export Tabs -->
+          <div class="vfx-tabs">
+            <button onclick="switchTab('node-graph')" id="tab-node-graph" class="vfx-tab vfx-tab--active">
+              <span class="vfx-tab__dot"></span> Math Node Graph
+            </button>
+            <button onclick="switchTab('hlsl')" id="tab-hlsl" class="vfx-tab">HLSL / GLSL</button>
+            <button onclick="switchTab('compact')" id="tab-compact" class="vfx-tab">Compact Math</button>
+            <button onclick="switchTab('unity')" id="tab-unity" class="vfx-tab">Shader Function</button>
+            <button onclick="switchTab('css')" id="tab-css" class="vfx-tab">CSS</button>
+          </div>
+        </div>
+
+        <!-- Visual Node Graph Container -->
+        <div id="node-graph-view" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="vfx-canvas-wrap vfx-node-grid" style="height: 320px;">
+            <svg id="nodeGraphSvg" class="cursor-grab"></svg>
+            <div class="vfx-canvas-badge" style="top: 10px; right: 10px; display: flex; align-items: center; gap: 8px;">
+              <span id="node-engine-badge" style="font-weight: 700; color: var(--vfx-action);">Universal Math Graph</span>
+              <span style="color: var(--vfx-border);">|</span>
+              <span style="color: var(--vfx-success); font-family: 'Fira Code', monospace;">Unity & Unreal Native Nodes</span>
+            </div>
+            <!-- Pan/Zoom hint & Reset buttons -->
+            <div class="vfx-canvas-badge" style="bottom: 10px; left: 10px; display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+              <span>ลากเพื่อ Pan | Scroll เพื่อ Zoom</span>
+              <button onclick="resetNodeGraphView()" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 20px; font-size: 10px;">Reset View</button>
+            </div>
+          </div>
+
+          <!-- Step-by-Step Node Recipe Box -->
+          <div class="vfx-recipe">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600;">
+              <span style="display: flex; align-items: center; gap: 6px; color: var(--vfx-action);">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Step-by-Step Node Recipe (<span id="recipe-target-name">Unity Shader Graph & Unreal Material</span>):
+              </span>
+              <button onclick="copyRecipeText()" class="vfx-btn vfx-btn--ghost" style="padding: 2px 8px; font-size: 11px;">
+                Copy Instructions
+              </button>
+            </div>
+            <ol id="node-recipe-list" class="vfx-recipe__list"></ol>
+          </div>
+        </div>
+
+        <!-- Code Block View -->
+        <div id="code-text-view" class="hidden" style="position: relative; flex: 1;">
+          <pre class="vfx-code-block"><code id="code-output">// Generating curve shader code...</code></pre>
+          <button onclick="copyCurrentCode()" class="vfx-btn" style="position: absolute; top: 10px; right: 10px; font-size: 11px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            คัดลอกโค้ด
+          </button>
+        </div>
+
+        <!-- VFX Practical Advice Footer -->
+        <div class="vfx-tip" style="margin-top: auto;">
+          <span class="vfx-tip__icon">💡</span>
+          <div>
+            <span class="vfx-tip__title" id="preset-tip-title">วิธีนำไปต่อในกราฟ:</span>
+            <span id="preset-tip-content">นำผลลัพธ์ $y$ ไปเสียบเข้ากับ Particle Color Alpha, หรือ Lerp เข้ากับ Scale และ Emissive Intensity</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="vfx-toast">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+    <span id="toast-msg">คัดลอกลงคลิปบอร์ดแล้ว!</span>
+  </div>
+
+  <!-- Main ES Module Script Entry Point -->
+  <script type="module" src="src/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VFX Shader Curve & Timing Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            mono: ['Fira Code', 'monospace']
+          },
+          colors: {
+            dark: {
+              950: '#030712',
+              900: '#0b1120',
+              850: '#111827',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569'
+            },
+            cyan: {
+              400: '#22d3ee',
+              500: '#06b6d4'
+            },
+            fuchsia: {
+              400: '#e879f9',
+              500: '#d946ef'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070a10; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .glow-cyan { box-shadow: 0 0 20px -3px rgba(34, 211, 238, 0.45); }
+    .glow-magenta { box-shadow: 0 0 20px -3px rgba(232, 121, 249, 0.45); }
+    .node-canvas-grid {
+      background-size: 24px 24px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    }
+  </style>
+</head>
+
+<body class="bg-dark-950 text-slate-200 font-sans min-h-screen flex flex-col selection:bg-cyan-500 selection:text-black">
+  <header class="border-b border-dark-800 bg-dark-900/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-fuchsia-500 flex items-center justify-center font-mono font-bold text-black text-xl shadow-lg shadow-cyan-500/20">
+        f(t)
+      </div>
+      <div>
+        <h1 class="font-bold text-base sm:text-lg text-white tracking-wide flex items-center gap-2">
+          VFX Shader Curve & Timing Generator
+          <span class="text-[10px] font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">v2.4 Node Graph</span>
+        </h1>
+        <p class="text-xs text-slate-400">สร้างสูตร Timing Curve, Interactive Bézier, Node Graph Visualizer สำหรับ Unity & Unreal Engine</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector & Toast Notification -->
+    <div class="flex items-center gap-3">
+      <div class="bg-dark-850 p-1 rounded-xl border border-dark-700 flex text-xs font-medium">
+        <button id="mode-bezier-btn" onclick="setMode('bezier')" class="px-3 py-1.5 rounded-lg transition-all text-white bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm">
+          🎛️ Bézier Handles
+        </button>
+        <button id="mode-expr-btn" onclick="setMode('expression')" class="px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white">
+          ✏️ Custom Expression
+        </button>
+      </div>
+      <div id="toast" class="hidden fixed bottom-6 right-6 z-50 bg-cyan-400 text-black px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toast-msg">คัดลอกโค้ดลงคลิปบอร์ดแล้ว!</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 p-3 sm:p-5 max-w-[1760px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- LEFT COLUMN: Preset Library & Curve Editor (6 Cols) -->
+    <section class="lg:col-span-6 flex flex-col gap-4">
+      
+      <!-- Preset Library Card with Live SVG Curves -->
+      <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              VFX Curve Presets (<span id="preset-count" class="text-cyan-400 font-mono">24</span> สูตร)
+            </span>
+            <p class="text-[11px] text-slate-400">เลือกกราฟเพื่อดูสมการ โหนด และตัวอย่างแอนิเมชันทันที</p>
+          </div>
+          
+          <!-- Search Input -->
+          <div class="relative w-full sm:w-52">
+            <input type="text" id="preset-search" placeholder="ค้นหาพรีเซ็ต (เช่น bell, quad)..." 
+              class="w-full bg-dark-950 border border-dark-700 focus:border-cyan-500 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition-colors"
+              oninput="onSearchPresets(this.value)">
+            <svg class="w-3.5 h-3.5 text-slate-500 absolute right-3 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-dark-800" id="category-pills"></div>
+
+        <!-- Presets Visual Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs max-h-[360px] overflow-y-auto pr-1.5 scroll-smooth" id="preset-grid"></div>
+      </div>
+
+      <!-- Interactive Curve Graph Editor Canvas -->
+      <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4 flex flex-col gap-3.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-dark-800 pb-2.5">
+          <div>
+            <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block animate-pulse"></span>
+              Curve Graph Editor ($X = t \in [0, 1]$, $Y = Output$)
+            </h2>
+            <p class="text-[11px] text-slate-400" id="editor-hint">
+              ลาก Handle สีฟ้า <span class="text-cyan-400 font-bold">P1</span> และชมพู <span class="text-fuchsia-400 font-bold">P2</span> หรือจุดเริ่ม/จบ เพื่อปรับแต่งเส้นโค้ง
+            </p>
+          </div>
+          <button onclick="resetCurrentCurve()" class="text-xs px-2.5 py-1 bg-dark-800 hover:bg-dark-700 rounded-lg text-slate-300 transition-colors border border-dark-700">
+            Reset (Linear)
+          </button>
+        </div>
+
+        <!-- Interactive Canvas Container -->
+        <div class="relative w-full h-[320px] bg-dark-950 rounded-xl border border-dark-800 overflow-hidden cursor-crosshair">
+          <canvas id="curveCanvas" class="w-full h-full block"></canvas>
+
+          <!-- Current Scrubber Tracker Info -->
+          <div class="absolute top-3 left-3 bg-dark-900/90 backdrop-blur border border-dark-700 text-[11px] font-mono px-3 py-1.5 rounded-lg text-slate-300 pointer-events-none flex items-center gap-3 shadow-lg">
+            <span>Time $t$: <span id="info-t" class="text-cyan-400 font-bold">0.00</span></span>
+            <span class="text-slate-600">|</span>
+            <span>Output $y$: <span id="info-y" class="text-fuchsia-400 font-bold">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- Bézier 4-point Inputs -->
+        <div id="bezier-controls" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-dark-850 p-2.5 rounded-xl border border-dark-700 text-xs font-mono">
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">P0 (Start):</label>
+            <div class="flex gap-1">
+              <input type="number" step="0.05" id="p0x" class="w-full bg-dark-950 border border-dark-700 rounded px-1.5 py-1 text-center text-slate-200" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p0y" class="w-full bg-dark-950 border border-dark-700 rounded px-1.5 py-1 text-center text-slate-200" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-cyan-400 block mb-0.5">P1 (Control 1):</label>
+            <div class="flex gap-1">
+              <input type="number" step="0.05" id="p1x" class="w-full bg-dark-950 border border-cyan-500/40 rounded px-1.5 py-1 text-center text-cyan-300" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p1y" class="w-full bg-dark-950 border border-cyan-500/40 rounded px-1.5 py-1 text-center text-cyan-300" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-fuchsia-400 block mb-0.5">P2 (Control 2):</label>
+            <div class="flex gap-1">
+              <input type="number" step="0.05" id="p2x" class="w-full bg-dark-950 border border-fuchsia-500/40 rounded px-1.5 py-1 text-center text-fuchsia-300" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p2y" class="w-full bg-dark-950 border border-fuchsia-500/40 rounded px-1.5 py-1 text-center text-fuchsia-300" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">P3 (End):</label>
+            <div class="flex gap-1">
+              <input type="number" step="0.05" id="p3x" class="w-full bg-dark-950 border border-dark-700 rounded px-1.5 py-1 text-center text-slate-200" onchange="updateHandleFromInput()">
+              <input type="number" step="0.05" id="p3y" class="w-full bg-dark-950 border border-dark-700 rounded px-1.5 py-1 text-center text-slate-200" onchange="updateHandleFromInput()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Expression Editor -->
+        <div id="expression-controls" class="hidden flex flex-col gap-2 bg-dark-850 p-3 rounded-xl border border-dark-700">
+          <label class="text-xs text-slate-300 font-semibold flex items-center justify-between">
+            <span>พิมพ์สูตรคณิตศาสตร์ Shader (ตัวแปร <code class="text-cyan-400 font-mono">t</code>):</span>
+            <span class="text-[10px] text-slate-400">pow, smoothstep, sin, frac, saturate</span>
+          </label>
+          <div class="flex gap-2">
+            <input type="text" id="custom-formula-input" value="pow(t, 2.0)" 
+              class="flex-1 bg-dark-950 border border-cyan-500/50 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+              placeholder="e.g. 4.0 * t * (1.0 - t)">
+            <button onclick="applyCustomFormula()" class="px-4 py-2 bg-cyan-500 text-black font-semibold rounded-xl text-xs hover:bg-cyan-400 transition-colors shadow-lg shadow-cyan-500/20">
+              Plot Curve
+            </button>
+          </div>
+          <p id="formula-error" class="text-xs text-rose-400 hidden"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Multi-Particle Motion Simulator + Shader Code / Node Visualizer (6 Cols) -->
+    <section class="lg:col-span-6 flex flex-col gap-4">
+      
+      <!-- Multi-Particle Live VFX Simulation -->
+      <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+            <h2 class="text-sm font-semibold text-white">Particle VFX Live Simulation</h2>
+          </div>
+          
+          <!-- Simulation Motion Mode Selector -->
+          <div class="flex items-center gap-1 bg-dark-950 p-1 rounded-lg border border-dark-800 text-[11px] overflow-x-auto max-w-full">
+            <button onclick="setVfxMotionMode('burst')" id="mode-burst-btn" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold shrink-0">Burst Radial</button>
+            <button onclick="setVfxMotionMode('linear1d')" id="mode-linear1d-btn" class="px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0">Left → Right (1P)</button>
+            <button onclick="setVfxMotionMode('slash')" id="mode-slash-btn" class="px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0">⚔️ Sword Slash</button>
+            <button onclick="setVfxMotionMode('orbit')" id="mode-orbit-btn" class="px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0">Vortex Orbit</button>
+            <button onclick="setVfxMotionMode('float')" id="mode-float-btn" class="px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0">Float Up</button>
+            <button onclick="setVfxMotionMode('core')" id="mode-core-btn" class="px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0">Core Orb</button>
+          </div>
+        </div>
+
+        <!-- Simulation Viewport Canvas -->
+        <div class="relative w-full h-52 bg-dark-950 rounded-xl border border-dark-800 flex items-center justify-center overflow-hidden">
+          <canvas id="particleCanvas" class="w-full h-full block"></canvas>
+          <div class="absolute bottom-2.5 right-3 text-right font-mono text-[11px] text-slate-300 bg-dark-900/90 backdrop-blur px-2.5 py-1 rounded-lg border border-dark-700 shadow-md">
+            Output $y$: <span class="text-fuchsia-400 font-bold" id="vfx-val-badge">0.00</span>
+          </div>
+        </div>
+
+        <!-- Particle Simulation Tuning Controls -->
+        <div class="flex flex-col gap-2.5 pt-1">
+          <div class="flex items-center gap-3">
+            <button id="play-btn" onclick="togglePlay()" class="p-2 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-700 text-white transition-colors">
+              <svg id="play-icon" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="pause-icon" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <div class="flex-1 flex flex-col gap-0.5">
+              <div class="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>Particle Timeline $t$: <b id="scrubber-label" class="text-cyan-400">0.00</b></span>
+                <span>Speed: <b id="speed-label" class="text-slate-300">1.0x</b></span>
+              </div>
+              <input type="range" id="scrubber" min="0" max="1" step="0.002" value="0" class="w-full h-1.5 bg-dark-800 rounded-lg appearance-none cursor-pointer accent-cyan-400" oninput="onScrub(this.value)">
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400 pt-1">
+            <div class="flex items-center gap-1.5 bg-dark-850 px-2 py-1 rounded-lg border border-dark-800">
+              <span>Count:</span>
+              <button onclick="setParticleCount(8)" class="px-1.5 py-0.5 rounded hover:text-white" id="p-count-8">8</button>
+              <button onclick="setParticleCount(12)" class="px-1.5 py-0.5 rounded text-cyan-300 font-bold bg-dark-950" id="p-count-12">12</button>
+              <button onclick="setParticleCount(16)" class="px-1.5 py-0.5 rounded hover:text-white" id="p-count-16">16</button>
+            </div>
+            <div class="flex items-center gap-1.5 bg-dark-850 px-2 py-1 rounded-lg border border-dark-800">
+              <span>Stagger:</span>
+              <input type="range" id="stagger-slider" min="0" max="0.3" step="0.02" value="0.08" class="w-16 accent-cyan-400 h-1" oninput="state.particleStagger=parseFloat(this.value)">
+            </div>
+            <div class="flex items-center justify-around bg-dark-850 px-2 py-1 rounded-lg border border-dark-800 col-span-2">
+              <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="apply-pos" checked class="accent-cyan-400 rounded"> Position</label>
+              <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="apply-scale" checked class="accent-cyan-400 rounded"> Scale</label>
+              <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="apply-alpha" checked class="accent-cyan-400 rounded"> Alpha</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shader Code Export & Interactive Node Graph Section -->
+      <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4 flex flex-col gap-3 flex-1">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-dark-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+              Shader Code & Node Graph Export
+            </span>
+          </div>
+
+          <!-- Extended Export Tabs -->
+          <div class="flex flex-wrap gap-1 text-[11px] font-mono bg-dark-850 p-1 rounded-lg border border-dark-800">
+            <button onclick="switchTab('node-graph')" id="tab-node-graph" class="px-2.5 py-1 rounded text-cyan-300 bg-cyan-500/20 font-semibold transition-all flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Math Node Graph
+            </button>
+            <button onclick="switchTab('hlsl')" id="tab-hlsl" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">HLSL / GLSL</button>
+            <button onclick="switchTab('compact')" id="tab-compact" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">Compact Math</button>
+            <button onclick="switchTab('unity')" id="tab-unity" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">Shader Function</button>
+            <button onclick="switchTab('css')" id="tab-css" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">CSS</button>
+          </div>
+        </div>
+
+        <!-- Visual Node Graph Container (Shown when Node Tabs are active) -->
+        <div id="node-graph-view" class="flex flex-col gap-3">
+          <div class="relative w-full h-[320px] bg-dark-950 node-canvas-grid rounded-xl border border-dark-800 overflow-hidden shadow-inner group">
+            <svg id="nodeGraphSvg" class="w-full h-full block select-none cursor-grab active:cursor-grabbing"></svg>
+            <div class="absolute top-2.5 right-2.5 flex items-center gap-2 bg-dark-900/90 backdrop-blur px-2.5 py-1 rounded-lg border border-dark-700 text-[10px] text-slate-400 pointer-events-none">
+              <span id="node-engine-badge" class="font-bold text-cyan-400">Universal Math Graph</span>
+              <span class="text-slate-600">|</span>
+              <span class="text-emerald-400 font-mono">Unity & Unreal Native Nodes</span>
+            </div>
+            <!-- Pan/Zoom hint & Reset buttons -->
+            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 bg-dark-900/80 backdrop-blur px-2 py-1 rounded-lg border border-dark-700/80 text-[10px] text-slate-400">
+              <span>ลากเพื่อ Pan | Scroll เพื่อ Zoom</span>
+              <button onclick="resetNodeGraphView()" class="ml-1 px-1.5 py-0.5 rounded bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700">Reset View</button>
+            </div>
+          </div>
+
+          <!-- Step-by-Step Node Recipe Box -->
+          <div class="bg-dark-850 border border-dark-700/80 rounded-xl p-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-200">
+              <span class="flex items-center gap-1.5 text-cyan-300">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Step-by-Step Node Recipe (<span id="recipe-target-name">Unity Shader Graph & Unreal Material</span>):
+              </span>
+              <button onclick="copyRecipeText()" class="text-[11px] text-slate-400 hover:text-white flex items-center gap-1">
+                <span>Copy Instructions</span>
+              </button>
+            </div>
+            <ol id="node-recipe-list" class="text-[11px] text-slate-300 space-y-1 font-mono list-decimal list-inside leading-relaxed pl-1"></ol>
+          </div>
+        </div>
+
+        <!-- Code Block View (Shown when HLSL/Compact/CSS tabs are active) -->
+        <div id="code-text-view" class="hidden relative group flex-1">
+          <pre class="bg-dark-950 border border-dark-800 rounded-xl p-3.5 text-xs font-mono text-emerald-400 overflow-x-auto min-h-[220px] max-h-[300px] leading-relaxed"><code id="code-output">// Generating curve shader code...</code></pre>
+          <button onclick="copyCurrentCode()" class="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 hover:text-white text-[11px] font-sans flex items-center gap-1.5 border border-dark-700 shadow-md transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            คัดลอกโค้ด
+          </button>
+        </div>
+
+        <!-- VFX Practical Advice Footer -->
+        <div class="bg-cyan-950/20 border border-cyan-800/40 rounded-xl p-3 text-xs text-slate-300 flex items-start gap-2.5 mt-auto">
+          <span class="text-cyan-400 text-base leading-none">💡</span>
+          <div class="leading-relaxed">
+            <span class="text-cyan-300 font-semibold" id="preset-tip-title">วิธีนำไปต่อในกราฟ:</span>
+            <span id="preset-tip-content">นำผลลัพธ์ $y$ ไปเสียบเข้ากับ Particle Color Alpha, หรือ Lerp เข้ากับ Scale และ Emissive Intensity</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      mode: 'bezier',
+      selectedPresetId: 'smoothstep',
+      activeCategory: 'all',
+      searchQuery: '',
+      handles: {
+        p0: { x: 0.0, y: 0.0 },
+        p1: { x: 0.42, y: 0.0 },
+        p2: { x: 0.58, y: 1.0 },
+        p3: { x: 1.0, y: 1.0 }
+      },
+      customExpr: 'smoothstep(0.0, 1.0, t)',
+      activeTab: 'node-graph',
+      currentTime: 0.0,
+      isPlaying: true,
+      speed: 1.0,
+      activeDrag: null,
+
+      // Particle Simulation Settings
+      vfxMode: 'burst',
+      particleCount: 12,
+      particleStagger: 0.08,
+      particles: [],
+      slashHistory: [],
+      linearHistory: [],
+
+      categories: [
+        { id: 'all', label: 'ทั้งหมด (All)' },
+        { id: 'easing', label: 'Easing & Transition' },
+        { id: 'flash', label: 'Flash & Glow (0→1→0)' },
+        { id: 'physics', label: 'Impact & Overshoot' },
+        { id: 'oscillation', label: 'Loops & Pulses' },
+        { id: 'stagger', label: 'Stagger & Steps' }
+      ],
+
+      presets: [
+        // 1. Easing & Transitions
+        {
+          id: 'linear',
+          cat: 'easing',
+          name: 'Linear (เชิงเส้น)',
+          type: 'bezier',
+          desc: 'ค่าเปลี่ยนคงที่สม่ำเสมอ เหมาะกับหมุน Loop หรือ UV Scroll',
+          tip: 'ในกราฟ: ลากสาย t เข้าใช้งานตรงๆ ได้ทันทีโดยไม่ต้องผ่านโหนดคำนวณ',
+          p0: [0, 0], p1: [0.33, 0.33], p2: [0.66, 0.66], p3: [1, 1],
+          expr: 't',
+          badge: 'y = t',
+          nodeType: 'linear'
+        },
+        {
+          id: 'ease-in-quad',
+          cat: 'easing',
+          name: 'Ease In (Quad)',
+          type: 'bezier',
+          desc: 'เริ่มช้าแล้วเร่งความเร็ว เหมาะกับจรวดพุ่ง หรือวัตถุดูดเข้าหาหลุมดำ',
+          tip: 'ในกราฟ: ต่อ t เข้า Power Node กำหนด Exp = 2.0',
+          p0: [0, 0], p1: [0.5, 0.0], p2: [0.75, 0.5], p3: [1, 1],
+          expr: 'pow(t, 2.0)',
+          badge: 'pow(t, 2)',
+          nodeType: 'power',
+          nodeParam: 2.0
+        },
+        {
+          id: 'ease-out-quad',
+          cat: 'easing',
+          name: 'Ease Out (Quad)',
+          type: 'bezier',
+          desc: 'ระเบิดพุ่งเร็วในพริบตา แล้วค่อยๆ ชะลอความเร็วนุ่มนวล',
+          tip: 'ในกราฟ: นำ t เข้า One Minus -> Power (2.0) -> One Minus',
+          p0: [0, 0], p1: [0.25, 0.75], p2: [0.5, 1.0], p3: [1, 1],
+          expr: '1.0 - pow(1.0 - t, 2.0)',
+          badge: '1 - (1-t)²',
+          nodeType: 'ease-out',
+          nodeParam: 2.0
+        },
+        {
+          id: 'ease-in-cubic',
+          cat: 'easing',
+          name: 'Ease In (Cubic)',
+          type: 'bezier',
+          desc: 'หน่วงช่วงแรกนานขึ้น แล้วพุ่งตัวทะยานแรงกว่า Quad',
+          tip: 'ในกราฟ: ต่อ t เข้า Power Node กำหนด Exp = 3.0',
+          p0: [0, 0], p1: [0.55, 0.055], p2: [0.675, 0.19], p3: [1, 1],
+          expr: 'pow(t, 3.0)',
+          badge: 'pow(t, 3)',
+          nodeType: 'power',
+          nodeParam: 3.0
+        },
+        {
+          id: 'ease-out-cubic',
+          cat: 'easing',
+          name: 'Ease Out (Cubic)',
+          type: 'bezier',
+          desc: 'กระแทกเปิดตัวแรงมากใน 15% แรก เหมาะกับสะเก็ดประกายไฟ',
+          tip: 'ในกราฟ: t -> One Minus -> Power (3.0) -> One Minus',
+          p0: [0, 0], p1: [0.215, 0.61], p2: [0.355, 1.0], p3: [1, 1],
+          expr: '1.0 - pow(1.0 - t, 3.0)',
+          badge: '1 - (1-t)³',
+          nodeType: 'ease-out',
+          nodeParam: 3.0
+        },
+        {
+          id: 'smoothstep',
+          cat: 'easing',
+          name: 'Smoothstep (Hermite)',
+          type: 'bezier',
+          desc: 'ช้าหัว-ท้าย นุ่มนวลตรงกลาง ลดรอยกระตุกของแอนิเมชัน',
+          tip: 'ในกราฟ: ใช้โหนด Smoothstep Node ใน Unity หรือ Smoothstep ใน UE ได้โดยตรง',
+          p0: [0, 0], p1: [0.42, 0.0], p2: [0.58, 1.0], p3: [1, 1],
+          expr: 'smoothstep(0.0, 1.0, t)',
+          badge: 'smoothstep',
+          nodeType: 'smoothstep',
+          min: 0.0, max: 1.0
+        },
+        {
+          id: 'smootherstep',
+          cat: 'easing',
+          name: 'Smootherstep (Perlin)',
+          type: 'expression',
+          desc: 'ความนุ่มนวลสูงสุด (2nd derivative = 0) สลาย Fog / Mist',
+          tip: 'ในกราฟ: สร้าง Custom Function หรือร้อยเรียงสมการ 6t⁵-15t⁴+10t³',
+          expr: 't * t * t * (t * (t * 6.0 - 15.0) + 10.0)',
+          p0: [0, 0], p1: [0.4, 0.0], p2: [0.6, 1.0], p3: [1, 1],
+          badge: '6t⁵-15t⁴+10t³',
+          nodeType: 'custom'
+        },
+        {
+          id: 'expo-ramp',
+          cat: 'easing',
+          name: 'Exponential Charge',
+          type: 'expression',
+          desc: 'กักเก็บพลังงานเงียบๆ แล้วสว่างวาบสุดขีดตอนท้าย',
+          tip: 'ในกราฟ: ต่อ t เข้า Multiply(4.0) -> Exponential -> Subtract(1) -> Divide',
+          expr: '(exp(4.0 * t) - 1.0) / (exp(4.0) - 1.0)',
+          p0: [0, 0], p1: [0.8, 0.1], p2: [0.95, 0.5], p3: [1, 1],
+          badge: 'exp(4t) ramp',
+          nodeType: 'custom'
+        },
+
+        // 2. Flash & Glow (0 -> 1 -> 0)
+        {
+          id: 'parabolic-bell',
+          cat: 'flash',
+          name: 'Parabolic Glow (Bell)',
+          type: 'expression',
+          desc: 'เส้นโค้งพาราโบลาสว่างขึ้นแล้วมืดลงแบบสมมาตรที่กึ่งกลาง',
+          tip: 'ในกราฟ: t -> One Minus (1-t) -> Multiply กับ t -> Multiply ด้วย 4.0',
+          expr: '4.0 * t * (1.0 - t)',
+          p0: [0, 0], p1: [0.25, 0.95], p2: [0.75, 0.95], p3: [1, 0],
+          badge: '4·t·(1-t)',
+          nodeType: 'bell'
+        },
+        {
+          id: 'attack-decay-fast',
+          cat: 'flash',
+          name: 'Muzzle Flash (วาบทันที)',
+          type: 'expression',
+          desc: 'วาบขึ้น 100% ใน 0.08s แล้วค่อยๆ ดับลงช้าๆ',
+          tip: 'ในกราฟ: แยกสาย Attack (Divide 0.08) และ Decay (One Minus / 0.92) แล้วรวบด้วย Min Node',
+          expr: 'min(saturate(t / 0.08), saturate((1.0 - t) / 0.92))',
+          p0: [0, 0], p1: [0.03, 1.0], p2: [0.3, 0.7], p3: [1, 0],
+          badge: 'flash 0.08s',
+          nodeType: 'attack-decay'
+        },
+        {
+          id: 'sine-pulse-half',
+          cat: 'flash',
+          name: 'Sine Ping-Pong',
+          type: 'expression',
+          desc: 'ยอดคลื่นไซน์ครึ่งลูก นุ่มนวลกว่าพาราโบลา ไม่มีเหลี่ยมคม',
+          tip: 'ในกราฟ: ต่อ t -> Multiply (3.14159) -> Sine Node (ใน UE ปรับ Period เป็น 1.0)',
+          expr: 'sin(t * 3.14159)',
+          p0: [0, 0], p1: [0.2, 0.8], p2: [0.8, 0.8], p3: [1, 0],
+          badge: 'sin(π·t)',
+          nodeType: 'sine-half'
+        },
+        {
+          id: 'lightning-strobe',
+          cat: 'flash',
+          name: 'Lightning Double Flash',
+          type: 'expression',
+          desc: 'ฟ้าผ่ากระพริบเบิ้ล 2 ครั้ง (วาบแรกสั้น วาบสองสว่างกว้าง)',
+          tip: 'ในกราฟ: t -> Sine (Freq 12.5) -> Saturate -> Multiply กับ (1-t)',
+          expr: 'saturate(sin(t * 12.56) * 1.5) * (1.0 - t)',
+          p0: [0, 0], p1: [0.15, 1.0], p2: [0.45, 0.8], p3: [1, 0],
+          badge: 'dual flash',
+          nodeType: 'custom'
+        },
+
+        // 3. Physics & Impact & Overshoot
+        {
+          id: 'anticipation-dip',
+          cat: 'physics',
+          name: 'Anticipation (ง้างถอยหลัง)',
+          type: 'bezier',
+          desc: 'ยุบตัวต่ำกว่า 0 สะสมแรง ก่อนดีดพุ่งไปข้างหน้า',
+          tip: 'ในกราฟ: ใช้ Bézier Custom Function หรือ Power Node ประกอบ',
+          p0: [0, 0], p1: [0.35, -0.28], p2: [0.45, 1.05], p3: [1, 1],
+          expr: 'pow(t, 2.0) * (3.5 * t - 2.5)',
+          badge: 'dip -0.28',
+          nodeType: 'bezier-custom'
+        },
+        {
+          id: 'overshoot-backout',
+          cat: 'physics',
+          name: 'Back Out (เด้งเกิน)',
+          type: 'bezier',
+          desc: 'พุ่งทะลุ 1.0 ไปถึง 1.25 แล้วดึงกลับมาหยุดอย่างหนักแน่น',
+          tip: 'ในกราฟ: ใช้ Cubic Bézier Evaluator หรือสมการ Back-Out Polynomial',
+          p0: [0, 0], p1: [0.34, 1.45], p2: [0.64, 1.0], p3: [1, 1],
+          expr: '1.0 + 2.70158 * pow(t - 1.0, 3.0) + 1.70158 * pow(t - 1.0, 2.0)',
+          badge: 'overshoot 1.25',
+          nodeType: 'bezier-custom'
+        },
+        {
+          id: 'elastic-bounce',
+          cat: 'physics',
+          name: 'Elastic Settle (ดีดดึ๋ง)',
+          type: 'expression',
+          desc: 'สปริงเด้งสั่นหลายรอบก่อนหยุดนิ่ง เหมาะกับเมือกสไลม์',
+          tip: 'ในกราฟ: 1.0 - (Exp(-6t) * Cos(18.84t))',
+          expr: '1.0 - exp(-6.0 * t) * cos(t * 18.84)',
+          p0: [0, 0], p1: [0.2, 1.3], p2: [0.5, 0.9], p3: [1, 1],
+          badge: 'damped spring',
+          nodeType: 'custom'
+        },
+        {
+          id: 'heavy-slam-impact',
+          cat: 'physics',
+          name: 'Heavy Slam (กระแทกพื้นสั่น)',
+          type: 'expression',
+          desc: 'กระแทกสูงสุดทันที t=0 แล้วสั่นสะเทือนหน่วงเร็ว',
+          tip: 'ในกราฟ: Screen Shake หรือคลื่นสะเทือนอุกกาบาต',
+          expr: 'exp(-5.0 * t) * cos(t * 25.13)',
+          p0: [0, 1], p1: [0.1, -0.4], p2: [0.3, 0.3], p3: [1, 0],
+          badge: 'impact wobble',
+          nodeType: 'custom'
+        },
+
+        // 4. Loops & Oscillations
+        {
+          id: 'sine-wave-cycle',
+          cat: 'oscillation',
+          name: 'Sine Wave Cycle (0-1-0)',
+          type: 'expression',
+          desc: 'คลื่นลูปสมบูรณ์ 1 รอบ เริ่มจาก 0.5 วิ่งไป 1 ลงไป 0 แล้วกลับมา 0.5',
+          tip: 'ในกราฟ: t -> Multiply(6.283) -> Sine -> Multiply(0.5) -> Add(0.5)',
+          expr: 'sin(t * 6.28318) * 0.5 + 0.5',
+          p0: [0, 0.5], p1: [0.25, 1.0], p2: [0.75, 0.0], p3: [1, 0.5],
+          badge: 'sin(2π·t)',
+          nodeType: 'sine-cycle'
+        },
+        {
+          id: 'flicker-torch',
+          cat: 'oscillation',
+          name: 'Torch Flicker (เปลวไฟกระพริบ)',
+          type: 'expression',
+          desc: 'การสั่นไหวหลายความถี่ ผสานการค่อยๆ ดับช่วงท้าย',
+          tip: 'ในกราฟ: ใช้ Noise Node หรือผสม Sine 2 ความถี่',
+          expr: 'saturate(0.65 + 0.35 * sin(t * 31.4) * cos(t * 12.5)) * (1.0 - t * 0.5)',
+          p0: [0, 0.8], p1: [0.3, 1.0], p2: [0.7, 0.4], p3: [1, 0.5],
+          badge: 'flicker noise',
+          nodeType: 'custom'
+        },
+        {
+          id: 'multi-hit-sawtooth',
+          cat: 'oscillation',
+          name: 'Multi-Hit Sawtooth (คอมโบ 3 จังหวะ)',
+          type: 'expression',
+          desc: 'ฟันดาบ 3 ฮิตต่อเนื่อง เพิ่มสเกลหรือดาเมจเป็นชุด',
+          tip: 'ในกราฟ: t -> Multiply(3.0) -> Fraction (Frac) Node',
+          expr: 'frac(t * 3.0)',
+          p0: [0, 0], p1: [0.33, 1.0], p2: [0.66, 0.0], p3: [1, 1.0],
+          badge: 'frac(3t)',
+          nodeType: 'frac-saw'
+        },
+        {
+          id: 'heartbeat-double-pulse',
+          cat: 'oscillation',
+          name: 'Heartbeat (เต้นตุบๆ 2 จังหวะ)',
+          type: 'expression',
+          desc: 'จังหวะหัวใจเต้น บีบ-คลาย 2 สเต็ปอย่างเป็นธรรมชาติ',
+          tip: 'ในกราฟ: รวม Sine Power Pulse 2 ลูกที่มี Offset เวลา',
+          expr: 'pow(saturate(sin(t * 6.283)), 8.0) + 0.5 * pow(saturate(sin((t - 0.15) * 6.283)), 8.0)',
+          p0: [0, 0], p1: [0.2, 1.0], p2: [0.4, 0.5], p3: [1, 0],
+          badge: 'pulse bi-phase',
+          nodeType: 'custom'
+        },
+
+        // 5. Stagger & Steps
+        {
+          id: 'subrange-phase1',
+          cat: 'stagger',
+          name: 'Phase 1: Delay Start (0.0-0.4)',
+          type: 'expression',
+          desc: 'ทำงานจบใน 40% แรก เพื่อเปิดทางให้เอฟเฟกต์เฟส 2 ทำงานต่อ',
+          tip: 'ในกราฟ: Remap Node [In: 0.0-0.4, Out: 0.0-1.0] หรือ t / 0.4 แล้ว Clamp',
+          expr: 'saturate(t / 0.4)',
+          p0: [0, 0], p1: [0.15, 0.0], p2: [0.35, 1.0], p3: [0.4, 1.0],
+          badge: 'remap [0, 0.4]',
+          nodeType: 'remap',
+          min: 0.0, max: 0.4
+        },
+        {
+          id: 'subrange-phase2',
+          cat: 'stagger',
+          name: 'Phase 2: Mid Bloom (0.3-0.7)',
+          type: 'expression',
+          desc: 'รอเวลาจนถึง 30% จึงเริ่มขยายตัว และเต็มที่ที่ 70%',
+          tip: 'ในกราฟ: Smoothstep Node (InMin: 0.3, InMax: 0.7)',
+          expr: 'smoothstep(0.3, 0.7, t)',
+          p0: [0, 0], p1: [0.3, 0.0], p2: [0.7, 1.0], p3: [1, 1],
+          badge: 'remap [0.3, 0.7]',
+          nodeType: 'smoothstep',
+          min: 0.3, max: 0.7
+        },
+        {
+          id: 'subrange-phase3',
+          cat: 'stagger',
+          name: 'Phase 3: Late Dissolve (0.6-1.0)',
+          type: 'expression',
+          desc: 'อยู่นิ่งๆ จนถึง 60% ของไทม์ไลน์ แล้วค่อยเริ่มสลายตัว',
+          tip: 'ในกราฟ: Remap Node [InMin: 0.6, InMax: 1.0] หรือ (t - 0.6)/0.4 -> Saturate',
+          expr: 'saturate((t - 0.6) / 0.4)',
+          p0: [0.6, 0], p1: [0.7, 0.0], p2: [0.9, 1.0], p3: [1, 1],
+          badge: 'remap [0.6, 1.0]',
+          nodeType: 'remap',
+          min: 0.6, max: 1.0
+        },
+        {
+          id: 'stepped-toon-posterize',
+          cat: 'stagger',
+          name: 'Anime Stepped (5 Steps)',
+          type: 'expression',
+          desc: 'แบ่งจังหวะออกเป็น 5 สเต็ปคมชัด สไตล์ Genshin / Anime VFX',
+          tip: 'ในกราฟ: t -> Multiply(5.0) -> Floor -> Divide(4.0)',
+          expr: 'floor(t * 5.0) / 4.0',
+          p0: [0, 0], p1: [0.2, 0.25], p2: [0.6, 0.75], p3: [1, 1],
+          badge: 'floor(5t) / 4',
+          nodeType: 'stepped',
+          steps: 5
+        }
+      ]
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('curveCanvas');
+    const ctx = canvas.getContext('2d');
+    const particleCanvas = document.getElementById('particleCanvas');
+    const pctx = particleCanvas.getContext('2d');
+    const scrubber = document.getElementById('scrubber');
+    const scrubberLabel = document.getElementById('scrubber-label');
+    const speedLabel = document.getElementById('speed-label');
+    const infoT = document.getElementById('info-t');
+    const infoY = document.getElementById('info-y');
+    const codeOutput = document.getElementById('code-output');
+    const presetGrid = document.getElementById('preset-grid');
+    const presetCount = document.getElementById('preset-count');
+    const categoryPills = document.getElementById('category-pills');
+    const formulaInput = document.getElementById('custom-formula-input');
+    const formulaError = document.getElementById('formula-error');
+    const tipTitle = document.getElementById('preset-tip-title');
+    const tipContent = document.getElementById('preset-tip-content');
+    const nodeGraphSvg = document.getElementById('nodeGraphSvg');
+    const nodeRecipeList = document.getElementById('node-recipe-list');
+    const recipeTargetName = document.getElementById('recipe-target-name');
+    const nodeEngineBadge = document.getElementById('node-engine-badge');
+    const nodeGraphView = document.getElementById('node-graph-view');
+    const codeTextView = document.getElementById('code-text-view');
+    const vfxValBadge = document.getElementById('vfx-val-badge');
+
+    // Pan & Zoom state for Node Graph SVG canvas
+    const graphPan = {
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      isDragging: false,
+      startX: 0,
+      startY: 0
+    };
+
+    function resetNodeGraphView() {
+      graphPan.x = 0;
+      graphPan.y = 0;
+      graphPan.scale = 1.0;
+      renderNodeGraph();
+    }
+
+    function setupNodeGraphInteractions() {
+      if (!nodeGraphSvg) return;
+
+      // Mouse Drag to Pan
+      nodeGraphSvg.addEventListener('mousedown', (e) => {
+        graphPan.isDragging = true;
+        graphPan.startX = e.clientX - graphPan.x;
+        graphPan.startY = e.clientY - graphPan.y;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!graphPan.isDragging) return;
+        graphPan.x = e.clientX - graphPan.startX;
+        graphPan.y = e.clientY - graphPan.startY;
+        renderNodeGraph();
+      });
+
+      window.addEventListener('mouseup', () => {
+        graphPan.isDragging = false;
+      });
+
+      // Mouse Wheel to Zoom in/out centered on view
+      nodeGraphSvg.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = 1.1;
+        if (e.deltaY < 0) {
+          graphPan.scale = Math.min(graphPan.scale * zoomFactor, 2.5);
+        } else {
+          graphPan.scale = Math.max(graphPan.scale / zoomFactor, 0.4);
+        }
+        renderNodeGraph();
+      }, { passive: false });
+
+      // Touch Drag & Pinch to Zoom
+      let lastTouchDist = 0;
+      nodeGraphSvg.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          graphPan.isDragging = true;
+          graphPan.startX = e.touches[0].clientX - graphPan.x;
+          graphPan.startY = e.touches[0].clientY - graphPan.y;
+        } else if (e.touches.length === 2) {
+          graphPan.isDragging = false;
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          lastTouchDist = Math.hypot(dx, dy);
+        }
+      }, { passive: true });
+
+      nodeGraphSvg.addEventListener('touchmove', (e) => {
+        if (graphPan.isDragging && e.touches.length === 1) {
+          graphPan.x = e.touches[0].clientX - graphPan.startX;
+          graphPan.y = e.touches[0].clientY - graphPan.startY;
+          renderNodeGraph();
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.hypot(dx, dy);
+          if (lastTouchDist > 0) {
+            const factor = dist / lastTouchDist;
+            graphPan.scale = Math.max(0.4, Math.min(2.5, graphPan.scale * factor));
+            renderNodeGraph();
+          }
+          lastTouchDist = dist;
+        }
+      }, { passive: true });
+
+      nodeGraphSvg.addEventListener('touchend', () => {
+        graphPan.isDragging = false;
+        lastTouchDist = 0;
+      });
+    }
+
+    const view = {
+      minX: -0.1,
+      maxX: 1.1,
+      minY: -0.4,
+      maxY: 1.6,
+      padding: 36
+    };
+
+    function evalBezier(u, p0, p1, p2, p3) {
+      const u2 = u * u;
+      const u3 = u2 * u;
+      const omt = 1 - u;
+      const omt2 = omt * omt;
+      const omt3 = omt2 * omt;
+
+      const x = omt3 * p0.x + 3 * omt2 * u * p1.x + 3 * omt * u2 * p2.x + u3 * p3.x;
+      const y = omt3 * p0.y + 3 * omt2 * u * p1.y + 3 * omt * u2 * p2.y + u3 * p3.y;
+      return { x, y };
+    }
+
+    function solveBezierYForX(t, p0, p1, p2, p3) {
+      if (t <= p0.x) return p0.y;
+      if (t >= p3.x) return p3.y;
+
+      let u = t;
+      for (let i = 0; i < 8; i++) {
+        const pt = evalBezier(u, p0, p1, p2, p3);
+        const dx = pt.x - t;
+        if (Math.abs(dx) < 1e-4) return pt.y;
+        
+        const omt = 1 - u;
+        const dxdt = 3 * omt * omt * (p1.x - p0.x) + 6 * omt * u * (p2.x - p1.x) + 3 * u * u * (p3.x - p2.x);
+        if (Math.abs(dxdt) < 1e-5) break;
+        u -= dx / dxdt;
+        u = Math.max(0, Math.min(1, u));
+      }
+      return evalBezier(u, p0, p1, p2, p3).y;
+    }
+
+    function evalCustomExpression(tVal, expr) {
+      try {
+        const saturate = (v) => Math.min(1, Math.max(0, v));
+        const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+        const smoothstep = (min, max, x) => {
+          const v = Math.min(1, Math.max(0, (x - min) / (max - min)));
+          return v * v * (3 - 2 * v);
+        };
+        const pow = (a, b) => Math.pow(Math.max(0, a), b);
+        const frac = (x) => x - Math.floor(x);
+        const floor = Math.floor;
+        const ceil = Math.ceil;
+        const sin = Math.sin;
+        const cos = Math.cos;
+        const abs = Math.abs;
+        const min = Math.min;
+        const max = Math.max;
+        const exp = Math.exp;
+        const PI = Math.PI;
+
+        const fn = new Function('t', 'saturate', 'clamp', 'smoothstep', 'pow', 'frac', 'floor', 'ceil', 'sin', 'cos', 'abs', 'min', 'max', 'exp', 'PI', `return (${expr});`);
+        const result = fn(tVal, saturate, clamp, smoothstep, pow, frac, floor, ceil, sin, cos, abs, min, max, exp, PI);
+        return isNaN(result) ? 0 : result;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    function evaluateGraph(t) {
+      if (state.mode === 'bezier') {
+        const { p0, p1, p2, p3 } = state.handles;
+        return solveBezierYForX(t, p0, p1, p2, p3);
+      } else {
+        return evalCustomExpression(t, state.customExpr);
+      }
+    }
+
+    function toScreen(x, y) {
+      const w = canvas.parentElement.clientWidth;
+      const h = canvas.parentElement.clientHeight;
+      const plotW = w - view.padding * 2;
+      const plotH = h - view.padding * 2;
+
+      const sx = view.padding + ((x - view.minX) / (view.maxX - view.minX)) * plotW;
+      const sy = h - (view.padding + ((y - view.minY) / (view.maxY - view.minY)) * plotH);
+      return { x: sx, y: sy };
+    }
+
+    function toWorld(sx, sy) {
+      const w = canvas.parentElement.clientWidth;
+      const h = canvas.parentElement.clientHeight;
+      const plotW = w - view.padding * 2;
+      const plotH = h - view.padding * 2;
+
+      const x = view.minX + ((sx - view.padding) / plotW) * (view.maxX - view.minX);
+      const y = view.minY + (((h - sy) - view.padding) / plotH) * (view.maxY - view.minY);
+      return { x, y };
+    }
+
+    function generateNodeGraphModel() {
+      const curPreset = state.presets.find(p => p.id === state.selectedPresetId);
+      const isBezierMode = state.mode === 'bezier';
+      const type = isBezierMode ? 'bezier-deconstructed' : (curPreset ? curPreset.nodeType : 'custom');
+
+      const inputNodeName = 'Input (t)';
+      const outputNodeName = 'Output (y)';
+      const round = (v) => Number(v.toFixed(2));
+
+      let nodes = [];
+      let wires = [];
+      let recipe = [];
+
+      // 1. Fully Deconstructed Cubic Bézier using basic primitive math nodes:
+      // Equation: P0*(1-t)^3 + 3*P1*(1-t)^2*t + 3*P2*(1-t)*t^2 + P3*t^3
+      // For normalized start P0=0, end P3=1:
+      // Term B = (1-t)^2 * t * (3 * P1)
+      // Term C = (1-t) * t^2 * (3 * P2)
+      // Term D = t^3 * P3
+      // Total = Term B + Term C + Term D
+      if (type === 'bezier-deconstructed') {
+        const { p1, p2, p3 } = state.handles;
+        const c1 = round(3 * p1.y);
+        const c2 = round(3 * p2.y);
+        const p3y = round(p3.y);
+
+        nodes = [
+          // Inputs & Pre-powers
+          { id: 'in_t', title: inputNodeName, x: 20, y: 160, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'om_t', title: 'One Minus', x: 180, y: 70, w: 120, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'pow_om2', title: 'Multiply (om²)', x: 340, y: 50, w: 135, h: 78, type: 'math', inPorts: ['A (1-t)', 'B (1-t)'], outPort: 'Out' },
+          { id: 'pow_t2', title: 'Multiply (t²)', x: 340, y: 250, w: 135, h: 78, type: 'math', inPorts: ['A (t)', 'B (t)'], outPort: 'Out' },
+          
+          // Term B branch: (1-t)^2 * t * (3 * P1.y)
+          { id: 'mul_b1', title: 'Multiply', x: 520, y: 40, w: 125, h: 78, type: 'math', inPorts: ['A (om²)', 'B (t)'], outPort: 'Out' },
+          { id: 'mul_b2', title: `Multiply (${c1})`, x: 680, y: 40, w: 135, h: 78, type: 'math', inPorts: ['A', `B (${c1})`], outPort: 'Out' },
+
+          // Term C branch: (1-t) * t^2 * (3 * P2.y)
+          { id: 'mul_c1', title: 'Multiply', x: 520, y: 150, w: 125, h: 78, type: 'math', inPorts: ['A (1-t)', 'B (t²)'], outPort: 'Out' },
+          { id: 'mul_c2', title: `Multiply (${c2})`, x: 680, y: 150, w: 135, h: 78, type: 'math', inPorts: ['A', `B (${c2})`], outPort: 'Out' },
+
+          // Term D branch: t^3 * P3.y
+          { id: 'mul_d1', title: 'Multiply (t³)', x: 520, y: 260, w: 125, h: 78, type: 'math', inPorts: ['A (t²)', 'B (t)'], outPort: 'Out' },
+          { id: 'mul_d2', title: `Multiply (${p3y})`, x: 680, y: 260, w: 135, h: 78, type: 'math', inPorts: ['A', `B (${p3y})`], outPort: 'Out' },
+
+          // Sum Accumulators
+          { id: 'add_bc', title: 'Add (B + C)', x: 855, y: 90, w: 130, h: 78, type: 'math', inPorts: ['A', 'B'], outPort: 'Out' },
+          { id: 'add_all', title: 'Add (+ D)', x: 1025, y: 140, w: 130, h: 78, type: 'math', inPorts: ['A (B+C)', 'B (D)'], outPort: 'Out' },
+
+          // Output
+          { id: 'out', title: outputNodeName, x: 1195, y: 145, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+
+        wires = [
+          // in_t to One Minus & directly to multiplies
+          { from: 'in_t', to: 'om_t', fromPort: 'Out', toPort: 'In' },
+          { from: 'om_t', to: 'pow_om2', fromPort: 'Out', toPort: 'A (1-t)' },
+          { from: 'om_t', to: 'pow_om2', fromPort: 'Out', toPort: 'B (1-t)' },
+          
+          { from: 'in_t', to: 'pow_t2', fromPort: 'Out', toPort: 'A (t)' },
+          { from: 'in_t', to: 'pow_t2', fromPort: 'Out', toPort: 'B (t)' },
+
+          // Term B
+          { from: 'pow_om2', to: 'mul_b1', fromPort: 'Out', toPort: 'A (om²)' },
+          { from: 'in_t', to: 'mul_b1', fromPort: 'Out', toPort: 'B (t)' },
+          { from: 'mul_b1', to: 'mul_b2', fromPort: 'Out', toPort: 'A' },
+
+          // Term C
+          { from: 'om_t', to: 'mul_c1', fromPort: 'Out', toPort: 'A (1-t)' },
+          { from: 'pow_t2', to: 'mul_c1', fromPort: 'Out', toPort: 'B (t²)' },
+          { from: 'mul_c1', to: 'mul_c2', fromPort: 'Out', toPort: 'A' },
+
+          // Term D
+          { from: 'pow_t2', to: 'mul_d1', fromPort: 'Out', toPort: 'A (t²)' },
+          { from: 'in_t', to: 'mul_d1', fromPort: 'Out', toPort: 'B (t)' },
+          { from: 'mul_d1', to: 'mul_d2', fromPort: 'Out', toPort: 'A' },
+
+          // Accumulator Add
+          { from: 'mul_b2', to: 'add_bc', fromPort: 'Out', toPort: 'A' },
+          { from: 'mul_c2', to: 'add_bc', fromPort: 'Out', toPort: 'B' },
+          { from: 'add_bc', to: 'add_all', fromPort: 'Out', toPort: 'A (B+C)' },
+          { from: 'mul_d2', to: 'add_all', fromPort: 'Out', toPort: 'B (D)' },
+          { from: 'add_all', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+
+        recipe = [
+          'ใช้โหนดพื้นฐานสากล (One Minus, Multiply, Add) ทั้งใน Unity และ Unreal เหมือนกัน',
+          'สร้างโหนด One Minus (1-t) แล้วยกกำลังสองด้วย Multiply',
+          `สร้างพจน์ B: (1-t)² * t แล้วคูณด้วยค่าคงที่ 3·P1 = ${c1}`,
+          `สร้างพจน์ C: (1-t) * t² แล้วคูณด้วยค่าคงที่ 3·P2 = ${c2}`,
+          `สร้างพจน์ D: t³ แล้วคูณด้วย P3 = ${p3y}`,
+          'รวมผลลัพธ์ทั้ง 3 ส่วนด้วยโหนด Add 2 ตัว แล้วเชื่อมต่อเข้าพอร์ต Output'
+        ];
+      } else if (type === 'linear') {
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 50, y: 90, w: 130, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 260, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [{ from: 'in', to: 'out', fromPort: 'Out', toPort: 'In' }];
+        recipe = [
+          'ลากสายค่า t (จาก Particle Life / Normalized Time) ตรงเข้าใช้งานได้ทันทีโดยไม่ต้องผ่านโหนดคำนวณ'
+        ];
+      } else if (type === 'power') {
+        const exp = (curPreset && curPreset.nodeParam) ? curPreset.nodeParam : 2.0;
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 40, y: 90, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'pow', title: 'Power', x: 210, y: 80, w: 135, h: 84, type: 'math', inPorts: ['Base (t)', `Exp (${exp})`], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 395, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'pow', fromPort: 'Out', toPort: 'Base (t)' },
+          { from: 'pow', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'สร้างโหนด `Power`',
+          `ต่อสัญญาณ t เข้าพอร์ต Base และตั้งค่าพอร์ต Exp เป็น ${exp}`,
+          'นำ Out เชื่อมเข้ากับ Alpha / Scale'
+        ];
+      } else if (type === 'ease-out') {
+        const exp = (curPreset && curPreset.nodeParam) ? curPreset.nodeParam : 2.0;
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 95, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'om1', title: 'One Minus', x: 190, y: 95, w: 120, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'pow', title: 'Power', x: 350, y: 85, w: 135, h: 84, type: 'math', inPorts: ['Base', `Exp (${exp})`], outPort: 'Out' },
+          { id: 'om2', title: 'One Minus', x: 525, y: 95, w: 120, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 685, y: 95, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'om1', fromPort: 'Out', toPort: 'In' },
+          { from: 'om1', to: 'pow', fromPort: 'Out', toPort: 'Base' },
+          { from: 'pow', to: 'om2', fromPort: 'Out', toPort: 'In' },
+          { from: 'om2', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'ส่งค่า t เข้าโหนด `One Minus` (1 - t)',
+          `ส่งเข้าโหนด \`Power\` กำหนดค่า Exp = ${exp}`,
+          'ส่งเข้าโหนด `One Minus` อีกครั้ง เพื่อให้ได้กราฟพุ่งตัวเร็วแล้วค่อยๆ ชะลอ',
+          'เชื่อมต่อเข้าช่อง Scale หรือ Alpha'
+        ];
+      } else if (type === 'smoothstep') {
+        const inMin = (curPreset && curPreset.min !== undefined) ? curPreset.min : 0.0;
+        const inMax = (curPreset && curPreset.max !== undefined) ? curPreset.max : 1.0;
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 90, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'ss', title: 'Smoothstep', x: 200, y: 70, w: 165, h: 96, type: 'math', inPorts: [`Edge1 (${inMin})`, `Edge2 (${inMax})`, 'In (t)'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 410, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'ss', fromPort: 'Out', toPort: 'In (t)' },
+          { from: 'ss', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'สร้างโหนด `Smoothstep` (ทั้ง Unity และ Unreal ใช้ชื่อ Smoothstep)',
+          `กำหนดค่า Edge1 = ${inMin} และ Edge2 = ${inMax}`,
+          'ต่อสาย t เข้าพอร์ต In'
+        ];
+      } else if (type === 'bell') {
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 20, y: 95, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'om', title: 'One Minus', x: 180, y: 150, w: 120, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'mul1', title: 'Multiply', x: 340, y: 80, w: 130, h: 84, type: 'math', inPorts: ['A (t)', 'B (1-t)'], outPort: 'Out' },
+          { id: 'mul2', title: 'Multiply (4.0)', x: 510, y: 80, w: 135, h: 84, type: 'math', inPorts: ['A', 'B (4.0)'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 685, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'mul1', fromPort: 'Out', toPort: 'A (t)' },
+          { from: 'in', to: 'om', fromPort: 'Out', toPort: 'In' },
+          { from: 'om', to: 'mul1', fromPort: 'Out', toPort: 'B (1-t)' },
+          { from: 'mul1', to: 'mul2', fromPort: 'Out', toPort: 'A' },
+          { from: 'mul2', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'แยกสาย t: สายแรกเข้าโหนด `Multiply (A)` อีกสายเข้า `One Minus`',
+          'นำเอาผลลัพธ์จาก `One Minus` เข้า `Multiply (B)` (ได้ค่า t * (1-t))',
+          'ส่งเข้าโหนด `Multiply` อีกตัวแล้วคูณด้วยค่าคงที่ `4.0`',
+          'ได้ค่าสว่างวาบสูงสุดที่ t = 0.5 แล้วค่อยๆ ดับสมบูรณ์ที่ t = 1.0'
+        ];
+      } else if (type === 'sine-half') {
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 90, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'mul_pi', title: 'Multiply (· π)', x: 190, y: 80, w: 140, h: 84, type: 'math', inPorts: ['A (t)', 'B (3.1415)'], outPort: 'Out' },
+          { id: 'sine', title: 'Sine', x: 370, y: 85, w: 120, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 530, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'mul_pi', fromPort: 'Out', toPort: 'A (t)' },
+          { from: 'mul_pi', to: 'sine', fromPort: 'Out', toPort: 'In' },
+          { from: 'sine', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'คูณค่า t ด้วย π (ประมาณ 3.14159)',
+          'ส่งเข้าโหนด `Sine`',
+          'เชื่อมต่อสัญญาณเข้า Glow Emissive หรือ Particle Scale'
+        ];
+      } else if (type === 'frac-saw') {
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 90, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'mul_freq', title: 'Multiply (3x)', x: 190, y: 80, w: 135, h: 84, type: 'math', inPorts: ['A (t)', 'B (3.0)'], outPort: 'Out' },
+          { id: 'frac', title: 'Fraction / Frac', x: 365, y: 90, w: 130, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 535, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'mul_freq', fromPort: 'Out', toPort: 'A (t)' },
+          { from: 'mul_freq', to: 'frac', fromPort: 'Out', toPort: 'In' },
+          { from: 'frac', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'นำค่า t ไปคูณกับจำนวนจังหวะ (เช่น 3.0)',
+          'ส่งเข้าโหนด `Fraction` (Unity) หรือ `Frac` (Unreal) เพื่อตัดเศษทศนิยม',
+          'ได้คลื่นฟันปลา (Sawtooth) 3 จังหวะต่อเนื่อง'
+        ];
+      } else if (type === 'remap') {
+        const inMin = (curPreset && curPreset.min !== undefined) ? curPreset.min : 0.0;
+        const inMax = (curPreset && curPreset.max !== undefined) ? curPreset.max : 0.4;
+        const range = round(inMax - inMin);
+
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 95, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'sub', title: 'Subtract', x: 190, y: 80, w: 135, h: 84, type: 'math', inPorts: ['A (t)', `B (${inMin})`], outPort: 'Out' },
+          { id: 'div', title: 'Divide', x: 365, y: 80, w: 140, h: 84, type: 'math', inPorts: ['A', `B (${range})`], outPort: 'Out' },
+          { id: 'sat', title: 'Saturate / Clamp', x: 545, y: 90, w: 135, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 720, y: 90, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'sub', fromPort: 'Out', toPort: 'A (t)' },
+          { from: 'sub', to: 'div', fromPort: 'Out', toPort: 'A' },
+          { from: 'div', to: 'sat', fromPort: 'Out', toPort: 'In' },
+          { from: 'sat', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          `ลบจุดเริ่มต้น: นำ t เข้าโหนด Subtract ด้วย ${inMin}`,
+          `หารด้วยช่วงความกว้าง: นำเข้าโหนด Divide หารด้วยช่วงเวลา (${range})`,
+          'ส่งเข้าโหนด `Saturate` (Unity) หรือ `Clamp (0..1)` (Unreal)',
+          'เชื่อมผลลัพธ์เข้า Particle Dissolve หรือ Animation Step'
+        ];
+      } else {
+        nodes = [
+          { id: 'in', title: inputNodeName, x: 30, y: 100, w: 120, h: 64, type: 'input', outPort: 'Out' },
+          { id: 'n1', title: 'One Minus (1-t)', x: 190, y: 50, w: 125, h: 64, type: 'math', inPorts: ['In'], outPort: 'Out' },
+          { id: 'n2', title: 'Multiply (t · t)', x: 190, y: 155, w: 135, h: 84, type: 'math', inPorts: ['A', 'B'], outPort: 'Out' },
+          { id: 'n3', title: 'Multiply', x: 365, y: 95, w: 130, h: 84, type: 'math', inPorts: ['A', 'B'], outPort: 'Out' },
+          { id: 'out', title: outputNodeName, x: 535, y: 100, w: 130, h: 64, type: 'output', inPort: 'In' }
+        ];
+        wires = [
+          { from: 'in', to: 'n1', fromPort: 'Out', toPort: 'In' },
+          { from: 'in', to: 'n2', fromPort: 'Out', toPort: 'A' },
+          { from: 'in', to: 'n2', fromPort: 'Out', toPort: 'B' },
+          { from: 'n1', to: 'n3', fromPort: 'Out', toPort: 'A' },
+          { from: 'n2', to: 'n3', fromPort: 'Out', toPort: 'B' },
+          { from: 'n3', to: 'out', fromPort: 'Out', toPort: 'In' }
+        ];
+        recipe = [
+          'ประกอบจาก Math Node พื้นฐานสากล (Multiply, One Minus, Add, Power, Saturate)',
+          `คำนวณตามสูตรคณิตศาสตร์: ${state.customExpr}`,
+          'สามารถลาก Pan / Scroll Zoom ผังโหนดเพื่อดูการเชื่อมต่อทั้งหมดได้'
+        ];
+      }
+
+      return { nodes, wires, recipe };
+    }
+
+    function renderNodeGraph() {
+      if (!nodeGraphSvg || !nodeRecipeList) return;
+      const model = generateNodeGraphModel();
+
+      if (recipeTargetName) {
+        recipeTargetName.textContent = 'Unity Shader Graph & Unreal Material';
+      }
+      if (nodeEngineBadge) {
+        nodeEngineBadge.textContent = 'Universal Math Graph';
+        nodeEngineBadge.className = 'font-bold text-cyan-400';
+      }
+
+      // Update Step-by-Step Recipe list
+      nodeRecipeList.innerHTML = '';
+      model.recipe.forEach(step => {
+        const li = document.createElement('li');
+        li.textContent = step;
+        nodeRecipeList.appendChild(li);
+      });
+
+      // SVG Canvas Render
+      nodeGraphSvg.innerHTML = '';
+
+      // Defs for gradients & shadow filters
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = `
+        <filter id="node-shadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+        </filter>
+        <linearGradient id="math-header" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#0284c7"/>
+          <stop offset="100%" stop-color="#0369a1"/>
+        </linearGradient>
+        <linearGradient id="io-header" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
+      `;
+      nodeGraphSvg.appendChild(defs);
+
+      // Root Transform Group for Pan & Zoom
+      const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      rootG.setAttribute('transform', `translate(${graphPan.x}, ${graphPan.y}) scale(${graphPan.scale})`);
+
+      // Render Wires (Cubic Bezier curve connection between ports)
+      const wireGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      model.wires.forEach(w => {
+        const fromNode = model.nodes.find(n => n.id === w.from);
+        const toNode = model.nodes.find(n => n.id === w.to);
+        if (!fromNode || !toNode) return;
+
+        const x1 = fromNode.x + fromNode.w;
+        const y1 = fromNode.y + fromNode.h * 0.55;
+
+        let x2 = toNode.x;
+        let y2 = toNode.y + toNode.h * 0.55;
+
+        if (toNode.inPorts && toNode.inPorts.length > 1) {
+          const portIndex = toNode.inPorts.indexOf(w.toPort);
+          if (portIndex >= 0) {
+            const step = (toNode.h - 26) / (toNode.inPorts.length + 1);
+            y2 = toNode.y + 22 + step * (portIndex + 1);
+          }
+        }
+
+        const dx = Math.max(35, Math.abs(x2 - x1) * 0.45);
+        const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+        // Glow line behind
+        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        glow.setAttribute('d', pathData);
+        glow.setAttribute('fill', 'none');
+        glow.setAttribute('stroke', 'rgba(34, 211, 238, 0.2)');
+        glow.setAttribute('stroke-width', '6');
+        wireGroup.appendChild(glow);
+
+        // Core wire line
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#22d3ee');
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linecap', 'round');
+        wireGroup.appendChild(path);
+      });
+      rootG.appendChild(wireGroup);
+
+      // Render Math Nodes
+      const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      model.nodes.forEach(n => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${n.x}, ${n.y})`);
+        g.setAttribute('filter', 'url(#node-shadow)');
+
+        const isMath = n.type === 'math';
+        const headerGrad = isMath ? 'url(#math-header)' : 'url(#io-header)';
+
+        // Node Body Box
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('width', n.w);
+        rect.setAttribute('height', n.h);
+        rect.setAttribute('rx', '6');
+        rect.setAttribute('fill', '#070d19');
+        rect.setAttribute('stroke', '#1e293b');
+        rect.setAttribute('stroke-width', '1.5');
+        g.appendChild(rect);
+
+        // Node Header Stripe
+        const header = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        header.setAttribute('width', n.w);
+        header.setAttribute('height', '22');
+        header.setAttribute('rx', '6');
+        header.setAttribute('fill', headerGrad);
+        g.appendChild(header);
+
+        // Header Title Text
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        title.setAttribute('x', '8');
+        title.setAttribute('y', '15');
+        title.setAttribute('fill', '#ffffff');
+        title.setAttribute('font-size', '10');
+        title.setAttribute('font-weight', '600');
+        title.setAttribute('font-family', 'Fira Code, monospace');
+        title.textContent = n.title;
+        g.appendChild(title);
+
+        // Input Port(s) on the left
+        if (n.inPort) {
+          const inPin = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          inPin.setAttribute('cx', '0');
+          inPin.setAttribute('cy', n.h * 0.55);
+          inPin.setAttribute('r', '4');
+          inPin.setAttribute('fill', '#06b6d4');
+          inPin.setAttribute('stroke', '#030712');
+          inPin.setAttribute('stroke-width', '1.5');
+          g.appendChild(inPin);
+        } else if (n.inPorts) {
+          const step = (n.h - 26) / (n.inPorts.length + 1);
+          n.inPorts.forEach((p, idx) => {
+            const py = 22 + step * (idx + 1);
+            const inPin = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            inPin.setAttribute('cx', '0');
+            inPin.setAttribute('cy', py);
+            inPin.setAttribute('r', '3.5');
+            inPin.setAttribute('fill', '#06b6d4');
+            inPin.setAttribute('stroke', '#030712');
+            inPin.setAttribute('stroke-width', '1.5');
+            g.appendChild(inPin);
+
+            const pLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            pLabel.setAttribute('x', '8');
+            pLabel.setAttribute('y', py + 3);
+            pLabel.setAttribute('fill', '#94a3b8');
+            pLabel.setAttribute('font-size', '8.5');
+            pLabel.setAttribute('font-family', 'Fira Code, monospace');
+            pLabel.textContent = p;
+            g.appendChild(pLabel);
+          });
+        }
+
+        // Output Port on the right
+        if (n.outPort) {
+          const outPin = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          outPin.setAttribute('cx', n.w);
+          outPin.setAttribute('cy', n.h * 0.55);
+          outPin.setAttribute('r', '4');
+          outPin.setAttribute('fill', '#22d3ee');
+          outPin.setAttribute('stroke', '#030712');
+          outPin.setAttribute('stroke-width', '1.5');
+          g.appendChild(outPin);
+
+          const oLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          oLabel.setAttribute('x', n.w - 24);
+          oLabel.setAttribute('y', n.h * 0.55 + 3);
+          oLabel.setAttribute('fill', '#94a3b8');
+          oLabel.setAttribute('font-size', '8.5');
+          oLabel.setAttribute('font-family', 'Fira Code, monospace');
+          oLabel.textContent = 'Out';
+          g.appendChild(oLabel);
+        }
+
+        nodeGroup.appendChild(g);
+      });
+
+      rootG.appendChild(nodeGroup);
+      nodeGraphSvg.appendChild(rootG);
+    }
+
+    function copyRecipeText() {
+      const model = generateNodeGraphModel();
+      const text = '// Step-by-Step Universal Math Node Recipe (Unity / Unreal):\n' + model.recipe.map((r, i) => `${i + 1}. ${r}`).join('\n');
+      
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = text;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+
+      showToast('คัดลอกคำแนะนำการต่อโหนดแล้ว!');
+    }
+
+    function generateCodeSnippets() {
+      const { p1, p2, p3 } = state.handles;
+      const round = (v) => Number(v.toFixed(3));
+
+      if (state.mode === 'bezier') {
+        const c1 = round(3.0 * p1.y);
+        const c2 = round(3.0 * p2.y);
+        const p3y = round(p3.y);
+
+        // Build simplified algebraic terms
+        const terms = [];
+        if (Math.abs(c1) > 0.0001) {
+          terms.push(c1 === 1.0 ? 'omt * omt * u' : (c1 === -1.0 ? '-omt * omt * u' : `${c1} * omt * omt * u`));
+        }
+        if (Math.abs(c2) > 0.0001) {
+          terms.push(c2 === 1.0 ? 'omt * u * u' : (c2 === -1.0 ? '-omt * u * u' : `${c2} * omt * u * u`));
+        }
+        if (Math.abs(p3y) > 0.0001) {
+          terms.push(p3y === 1.0 ? 'u * u * u' : (p3y === -1.0 ? '-u * u * u' : `${p3y} * u * u * u`));
+        }
+
+        const returnExpr = terms.length > 0 ? terms.join(' + ') : '0.0';
+
+        // Compact math string with dead code eliminated
+        const compactTerms = [];
+        if (Math.abs(c1) > 0.0001) {
+          compactTerms.push(c1 === 1.0 ? '(1.0 - t) * (1.0 - t) * t' : `${c1} * (1.0 - t) * (1.0 - t) * t`);
+        }
+        if (Math.abs(c2) > 0.0001) {
+          compactTerms.push(c2 === 1.0 ? '(1.0 - t) * t * t' : `${c2} * (1.0 - t) * t * t`);
+        }
+        if (Math.abs(p3y) > 0.0001) {
+          compactTerms.push(p3y === 1.0 ? 't * t * t' : `${p3y} * t * t * t`);
+        }
+        const compactExpr = compactTerms.length > 0 ? compactTerms.join(' + ') : '0.0';
+
+        const hlslFunc = `// HLSL / GLSL Cubic Bézier Evaluator (Optimized)
+// P1 = (${round(p1.x)}, ${round(p1.y)}), P2 = (${round(p2.x)}, ${round(p2.y)})
+float EvaluateVFXCurve(float t)
+{
+    float u = saturate(t);
+    float omt = 1.0 - u;
+    return ${returnExpr};
+}`;
+
+        const compact = `float y = ${compactExpr};`;
+
+        const unity = `// Shader Function (In: float t, Out: float Out)
+float u = saturate(t);
+float omt = 1.0 - u;
+Out = ${returnExpr};`;
+
+        const css = `/* CSS Animation Timing */\ntransition-timing-function: cubic-bezier(${round(p1.x)}, ${round(p1.y)}, ${round(p2.x)}, ${round(p2.y)});`;
+
+        return { hlsl: hlslFunc, compact, unity, css };
+      } else {
+        const expr = state.customExpr;
+        const hlslFunc = `// HLSL / GLSL Custom Expression
+float EvaluateVFXCurve(float t)
+{
+    float val = ${expr};
+    return val;
+}`;
+
+        const compact = `float y = ${expr};`;
+        const unity = `// Shader Function (In: float t, Out: float Out)\nOut = ${expr};`;
+        const css = `/* Expression: ${expr} */`;
+
+        return { hlsl: hlslFunc, compact, unity, css };
+      }
+    }
+
+    function updateOutputs() {
+      const snippets = generateCodeSnippets();
+      if (codeOutput) {
+        codeOutput.textContent = snippets[state.activeTab] || snippets.hlsl;
+      }
+
+      if (state.activeTab === 'node-graph') {
+        if (nodeGraphView) nodeGraphView.classList.remove('hidden');
+        if (codeTextView) codeTextView.classList.add('hidden');
+        renderNodeGraph();
+      } else {
+        if (nodeGraphView) nodeGraphView.classList.add('hidden');
+        if (codeTextView) codeTextView.classList.remove('hidden');
+      }
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      const allTabs = ['node-graph', 'hlsl', 'compact', 'unity', 'css'];
+      allTabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        if (!btn) return;
+        if (t === tab) {
+          btn.className = 'px-2.5 py-1 rounded text-cyan-300 bg-cyan-500/20 font-semibold transition-all flex items-center gap-1.5';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+        }
+      });
+      updateOutputs();
+    }
+
+    function generatePresetThumbnailSVG(preset) {
+      const svgW = 76;
+      const svgH = 48;
+      const padX = 8;
+      const padY = 6;
+      const plotW = svgW - padX * 2;
+      const plotH = svgH - padY * 2;
+
+      const toSvgX = (t) => padX + t * plotW;
+      const toSvgY = (y) => (svgH - padY) - ((y + 0.3) / 1.7) * plotH;
+
+      let d = '';
+      const samples = 28;
+
+      for (let i = 0; i <= samples; i++) {
+        const t = i / samples;
+        let y = 0;
+        if (preset.type === 'bezier') {
+          const p0 = { x: preset.p0[0], y: preset.p0[1] };
+          const p1 = { x: preset.p1[0], y: preset.p1[1] };
+          const p2 = { x: preset.p2[0], y: preset.p2[1] };
+          const p3 = { x: preset.p3[0], y: preset.p3[1] };
+          y = solveBezierYForX(t, p0, p1, p2, p3);
+        } else {
+          y = evalCustomExpression(t, preset.expr);
+        }
+
+        const sx = toSvgX(t).toFixed(1);
+        const sy = Math.max(2, Math.min(svgH - 2, toSvgY(y))).toFixed(1);
+        d += (i === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
+      }
+
+      const baselineY = toSvgY(0).toFixed(1);
+      const top1Y = toSvgY(1.0).toFixed(1);
+
+      return `
+        <svg viewBox="0 0 ${svgW} ${svgH}" class="w-[76px] h-[48px] shrink-0 bg-dark-950 rounded-lg border border-dark-800 p-0.5 overflow-hidden transition-colors group-hover:border-cyan-500/50 shadow-inner">
+          <line x1="${padX}" y1="${baselineY}" x2="${svgW - padX}" y2="${baselineY}" stroke="#1e293b" stroke-width="1" />
+          <line x1="${padX}" y1="${top1Y}" x2="${svgW - padX}" y2="${top1Y}" stroke="#1e293b" stroke-width="0.8" stroke-dasharray="2 2" />
+          <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${svgH - padY}" stroke="#1e293b" stroke-width="1" />
+          <path d="${d}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      `;
+    }
+
+    function initCategoryPills() {
+      categoryPills.innerHTML = '';
+      state.categories.forEach(cat => {
+        const btn = document.createElement('button');
+        const isActive = state.activeCategory === cat.id;
+        btn.className = `px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          isActive 
+            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-semibold' 
+            : 'bg-dark-950 text-slate-400 hover:text-white border border-dark-800 hover:border-dark-700'
+        }`;
+        btn.textContent = cat.label;
+        btn.onclick = () => {
+          state.activeCategory = cat.id;
+          initCategoryPills();
+          renderPresetGrid();
+        };
+        categoryPills.appendChild(btn);
+      });
+    }
+
+    function onSearchPresets(val) {
+      state.searchQuery = val.trim().toLowerCase();
+      renderPresetGrid();
+    }
+
+    function renderPresetGrid() {
+      presetGrid.innerHTML = '';
+      
+      const filtered = state.presets.filter(p => {
+        const matchesCategory = state.activeCategory === 'all' || p.cat === state.activeCategory;
+        const matchesQuery = !state.searchQuery || 
+          p.name.toLowerCase().includes(state.searchQuery) ||
+          p.desc.toLowerCase().includes(state.searchQuery) ||
+          p.badge.toLowerCase().includes(state.searchQuery);
+        return matchesCategory && matchesQuery;
+      });
+
+      presetCount.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        presetGrid.innerHTML = `<div class="col-span-full py-6 text-center text-slate-500 text-xs">ไม่พบพรีเซ็ตที่ตรงกับ "${state.searchQuery}"</div>`;
+        return;
+      }
+
+      filtered.forEach(preset => {
+        const card = document.createElement('div');
+        const isActive = state.selectedPresetId === preset.id;
+        card.id = `preset-card-${preset.id}`;
+        card.className = `group bg-dark-850 hover:bg-dark-800 border ${isActive ? 'border-cyan-400 glow-cyan' : 'border-dark-700/80'} rounded-xl p-2.5 flex items-center gap-3 cursor-pointer transition-all min-h-[76px] shrink-0`;
+        card.onclick = () => loadPreset(preset);
+
+        card.innerHTML = `
+          ${generatePresetThumbnailSVG(preset)}
+          <div class="flex-1 min-w-0 flex flex-col justify-center">
+            <div class="flex items-center justify-between gap-1">
+              <span class="font-semibold text-slate-100 truncate text-xs group-hover:text-cyan-300 transition-colors">${preset.name}</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-dark-950 text-cyan-400 border border-dark-700 shrink-0">${preset.badge}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 line-clamp-1 leading-snug mt-0.5">${preset.desc}</p>
+          </div>
+        `;
+        presetGrid.appendChild(card);
+      });
+    }
+
+    function highlightActivePresetCard(id) {
+      state.selectedPresetId = id;
+      state.presets.forEach(p => {
+        const el = document.getElementById(`preset-card-${p.id}`);
+        if (!el) return;
+        if (p.id === id) {
+          el.className = 'group bg-dark-850 hover:bg-dark-800 border border-cyan-400 glow-cyan rounded-xl p-2.5 flex items-center gap-3 cursor-pointer transition-all min-h-[76px] shrink-0';
+        } else {
+          el.className = 'group bg-dark-850 hover:bg-dark-800 border border-dark-700/80 rounded-xl p-2.5 flex items-center gap-3 cursor-pointer transition-all min-h-[76px] shrink-0';
+        }
+      });
+    }
+
+    function initParticles() {
+      state.particles = [];
+      const colors = ['#22d3ee', '#38bdf8', '#818cf8', '#c084fc', '#e879f9'];
+      for (let i = 0; i < state.particleCount; i++) {
+        const angle = (i / state.particleCount) * Math.PI * 2;
+        state.particles.push({
+          angle,
+          color: colors[i % colors.length],
+          baseRadius: 38 + (i % 3) * 16,
+          staggerPhase: i * state.particleStagger,
+          spinSpeed: 0.8 + (i % 2) * 0.4
+        });
+      }
+    }
+
+    function setParticleCount(n) {
+      state.particleCount = n;
+      [8, 12, 16].forEach(count => {
+        const btn = document.getElementById(`p-count-${count}`);
+        if (btn) {
+          if (count === n) {
+            btn.className = 'px-1.5 py-0.5 rounded text-cyan-300 font-bold bg-dark-950';
+          } else {
+            btn.className = 'px-1.5 py-0.5 rounded hover:text-white';
+          }
+        }
+      });
+      initParticles();
+    }
+
+    function setVfxMotionMode(mode) {
+      state.vfxMode = mode;
+      state.slashHistory = [];
+      state.linearHistory = [];
+      const modes = ['burst', 'linear1d', 'slash', 'orbit', 'float', 'core'];
+      modes.forEach(m => {
+        const btn = document.getElementById(`mode-${m}-btn`);
+        if (btn) {
+          if (m === mode) {
+            btn.className = 'px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold shrink-0';
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-white shrink-0';
+          }
+        }
+      });
+    }
+
+    function renderParticleSimulation() {
+      const w = particleCanvas.parentElement.clientWidth;
+      const h = particleCanvas.parentElement.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+
+      if (particleCanvas.width !== w * dpr || particleCanvas.height !== h * dpr) {
+        particleCanvas.width = w * dpr;
+        particleCanvas.height = h * dpr;
+      }
+      pctx.resetTransform?.();
+      pctx.scale(dpr, dpr);
+      pctx.clearRect(0, 0, w, h);
+
+      const centerX = w * 0.5;
+      const centerY = h * 0.5;
+      const mainT = state.currentTime;
+      const mainY = evaluateGraph(mainT);
+
+      const applyPos = document.getElementById('apply-pos')?.checked ?? true;
+      const applyScale = document.getElementById('apply-scale')?.checked ?? true;
+      const applyAlpha = document.getElementById('apply-alpha')?.checked ?? true;
+
+      // --- MODE 1: LINEAR 1D (Left to Right Track) ---
+      if (state.vfxMode === 'linear1d') {
+        const trackStartX = w * 0.12;
+        const trackEndX = w * 0.88;
+        const trackY = centerY;
+        const trackLen = trackEndX - trackStartX;
+
+        // Draw track rails
+        pctx.save();
+        pctx.strokeStyle = '#1e293b';
+        pctx.lineWidth = 3;
+        pctx.beginPath();
+        pctx.moveTo(trackStartX, trackY);
+        pctx.lineTo(trackEndX, trackY);
+        pctx.stroke();
+
+        // Track division marks
+        [0.0, 0.25, 0.5, 0.75, 1.0].forEach(frac => {
+          const mx = trackStartX + trackLen * frac;
+          pctx.strokeStyle = '#334155';
+          pctx.lineWidth = 1.5;
+          pctx.beginPath();
+          pctx.moveTo(mx, trackY - 6);
+          pctx.lineTo(mx, trackY + 6);
+          pctx.stroke();
+
+          pctx.fillStyle = '#64748b';
+          pctx.font = '9px Fira Code';
+          pctx.fillText(frac.toFixed(2), mx - 10, trackY + 18);
+        });
+
+        // 1D Particle position driven by y
+        const clampedY = applyPos ? mainY : mainT;
+        const currentPx = trackStartX + trackLen * clampedY;
+
+        state.linearHistory.push({ x: currentPx, y: trackY, t: mainT, valY: mainY });
+        if (state.linearHistory.length > 24 || mainT < 0.02) {
+          if (mainT < 0.02) state.linearHistory = [];
+          else state.linearHistory.shift();
+        }
+
+        // Velocity ghost trail
+        const hLen = state.linearHistory.length;
+        for (let i = 0; i < hLen - 1; i++) {
+          const pt = state.linearHistory[i];
+          const f = i / hLen;
+          pctx.fillStyle = `rgba(34, 211, 238, ${f * 0.35})`;
+          pctx.beginPath();
+          pctx.arc(pt.x, trackY, 4 * f, 0, Math.PI * 2);
+          pctx.fill();
+        }
+
+        const pRadius = applyScale ? Math.max(3, 5 + mainY * 9) : 8;
+        const pOpacity = applyAlpha ? Math.min(1, Math.max(0.1, mainY)) : 0.95;
+
+        // Main particle
+        pctx.fillStyle = '#ffffff';
+        pctx.shadowColor = '#22d3ee';
+        pctx.shadowBlur = 18;
+        pctx.globalAlpha = pOpacity;
+        pctx.beginPath();
+        pctx.arc(currentPx, trackY, pRadius, 0, Math.PI * 2);
+        pctx.fill();
+
+        pctx.restore();
+        return;
+      }
+
+      // --- MODE 2: SWORD SLASH VFX (Crescent Arc & Long Energy Trail) ---
+      if (state.vfxMode === 'slash') {
+        const slashOriginX = centerX - 15;
+        const slashOriginY = centerY + 35;
+        const radius = Math.min(w, h) * 0.46;
+
+        // Broad sweep range: -160 deg to +60 deg (~220 degrees)
+        const startAngle = -Math.PI * 0.90;
+        const sweepRange = Math.PI * 1.35;
+
+        const currentAngle = startAngle + mainY * sweepRange;
+        const pAlpha = applyAlpha ? Math.min(1, Math.max(0.08, mainY)) : 0.95;
+        const bladeScale = applyScale ? Math.max(0.35, 0.45 + mainY * 0.75) : 1.0;
+
+        state.slashHistory.push({
+          angle: currentAngle,
+          y: mainY,
+          alpha: pAlpha,
+          time: mainT
+        });
+
+        if (state.slashHistory.length > 52 || mainT < 0.03) {
+          if (mainT < 0.03) state.slashHistory = [];
+          else state.slashHistory.shift();
+        }
+
+        pctx.save();
+
+        const histLen = state.slashHistory.length;
+        if (histLen >= 3) {
+          // Layer A: Outer Neon Blue Aura Glow
+          for (let i = 0; i < histLen - 1; i++) {
+            const h1 = state.slashHistory[i];
+            const h2 = state.slashHistory[i + 1];
+            const factor1 = i / histLen;
+            const factor2 = (i + 1) / histLen;
+
+            const width1 = radius * (0.38 * Math.pow(factor1, 0.65));
+            const width2 = radius * (0.38 * Math.pow(factor2, 0.65));
+
+            const rTip1 = radius * (0.82 + factor1 * 0.22);
+            const rTip2 = radius * (0.82 + factor2 * 0.22);
+            const rInner1 = rTip1 - width1;
+            const rInner2 = rTip2 - width2;
+
+            const cos1 = Math.cos(h1.angle);
+            const sin1 = Math.sin(h1.angle);
+            const cos2 = Math.cos(h2.angle);
+            const sin2 = Math.sin(h2.angle);
+
+            pctx.beginPath();
+            pctx.moveTo(slashOriginX + cos1 * rInner1, slashOriginY + sin1 * rInner1);
+            pctx.lineTo(slashOriginX + cos1 * rTip1, slashOriginY + sin1 * rTip1);
+            pctx.lineTo(slashOriginX + cos2 * rTip2, slashOriginY + sin2 * rTip2);
+            pctx.lineTo(slashOriginX + cos2 * rInner2, slashOriginY + sin2 * rInner2);
+            pctx.closePath();
+
+            pctx.fillStyle = `rgba(14, 116, 244, ${Math.pow(factor2, 1.4) * 0.45 * pAlpha})`;
+            pctx.shadowColor = '#0284c7';
+            pctx.shadowBlur = factor2 * 22;
+            pctx.fill();
+          }
+
+          // Layer B: Bright Cyan Energy Body Ribbon
+          for (let i = 0; i < histLen - 1; i++) {
+            const h1 = state.slashHistory[i];
+            const h2 = state.slashHistory[i + 1];
+            const factor1 = i / histLen;
+            const factor2 = (i + 1) / histLen;
+
+            const width1 = radius * (0.24 * Math.pow(factor1, 0.7));
+            const width2 = radius * (0.24 * Math.pow(factor2, 0.7));
+
+            const rTip1 = radius * (0.88 + factor1 * 0.16);
+            const rTip2 = radius * (0.88 + factor2 * 0.16);
+            const rInner1 = rTip1 - width1;
+            const rInner2 = rTip2 - width2;
+
+            const cos1 = Math.cos(h1.angle);
+            const sin1 = Math.sin(h1.angle);
+            const cos2 = Math.cos(h2.angle);
+            const sin2 = Math.sin(h2.angle);
+
+            pctx.beginPath();
+            pctx.moveTo(slashOriginX + cos1 * rInner1, slashOriginY + sin1 * rInner1);
+            pctx.lineTo(slashOriginX + cos1 * rTip1, slashOriginY + sin1 * rTip1);
+            pctx.lineTo(slashOriginX + cos2 * rTip2, slashOriginY + sin2 * rTip2);
+            pctx.lineTo(slashOriginX + cos2 * rInner2, slashOriginY + sin2 * rInner2);
+            pctx.closePath();
+
+            pctx.fillStyle = `rgba(56, 189, 248, ${Math.pow(factor2, 1.2) * 0.75 * pAlpha})`;
+            pctx.shadowColor = '#38bdf8';
+            pctx.shadowBlur = factor2 * 14;
+            pctx.fill();
+          }
+
+          // Layer C: Razor Sharp White-Hot Cutting Edge
+          pctx.strokeStyle = `rgba(255, 255, 255, ${pAlpha * 0.95})`;
+          pctx.lineWidth = 3.5;
+          pctx.shadowColor = '#e0f2fe';
+          pctx.shadowBlur = 12;
+          pctx.beginPath();
+          state.slashHistory.forEach((h, idx) => {
+            const f = idx / (histLen - 1);
+            const rEdge = radius * (0.88 + f * 0.16);
+            const px = slashOriginX + Math.cos(h.angle) * rEdge;
+            const py = slashOriginY + Math.sin(h.angle) * rEdge;
+            if (idx === 0) pctx.moveTo(px, py);
+            else pctx.lineTo(px, py);
+          });
+          pctx.stroke();
+
+          // Layer D: Inner Core Highlight Strip
+          pctx.strokeStyle = `rgba(224, 242, 254, ${pAlpha * 0.8})`;
+          pctx.lineWidth = 1.8;
+          pctx.beginPath();
+          state.slashHistory.forEach((h, idx) => {
+            const f = idx / (histLen - 1);
+            const rEdge = radius * (0.82 + f * 0.12);
+            const px = slashOriginX + Math.cos(h.angle) * rEdge;
+            const py = slashOriginY + Math.sin(h.angle) * rEdge;
+            if (idx === 0) pctx.moveTo(px, py);
+            else pctx.lineTo(px, py);
+          });
+          pctx.stroke();
+        }
+
+        // Stylized Sword Asset (Grip, Pommel, Crossguard, Blade)
+        const bladeLen = radius * bladeScale;
+        const cos = Math.cos(currentAngle);
+        const sin = Math.sin(currentAngle);
+        const perpX = -sin;
+        const perpY = cos;
+
+        const hiltBaseX = slashOriginX;
+        const hiltBaseY = slashOriginY;
+        const guardDist = bladeLen * 0.22;
+        const guardCenterX = slashOriginX + cos * guardDist;
+        const guardCenterY = slashOriginY + sin * guardDist;
+        const bladeTipX = slashOriginX + cos * bladeLen;
+        const bladeTipY = slashOriginY + sin * bladeLen;
+
+        // Grip Handle
+        pctx.strokeStyle = '#334155';
+        pctx.lineWidth = 4.5;
+        pctx.beginPath();
+        pctx.moveTo(hiltBaseX, hiltBaseY);
+        pctx.lineTo(guardCenterX, guardCenterY);
+        pctx.stroke();
+
+        // Pommel (Bottom orb)
+        pctx.fillStyle = '#38bdf8';
+        pctx.shadowColor = '#0284c7';
+        pctx.shadowBlur = 8;
+        pctx.beginPath();
+        pctx.arc(hiltBaseX, hiltBaseY, 4.5, 0, Math.PI * 2);
+        pctx.fill();
+
+        // Crossguard
+        const guardSpan = 14;
+        pctx.strokeStyle = '#cbd5e1';
+        pctx.shadowColor = '#38bdf8';
+        pctx.shadowBlur = 6;
+        pctx.lineWidth = 4;
+        pctx.beginPath();
+        pctx.moveTo(guardCenterX - perpX * guardSpan, guardCenterY - perpY * guardSpan);
+        pctx.lineTo(guardCenterX + perpX * guardSpan, guardCenterY + perpY * guardSpan);
+        pctx.stroke();
+
+        // Blade Body
+        pctx.strokeStyle = '#f1f5f9';
+        pctx.shadowColor = '#38bdf8';
+        pctx.shadowBlur = 10;
+        pctx.lineWidth = 4;
+        pctx.beginPath();
+        pctx.moveTo(guardCenterX, guardCenterY);
+        pctx.lineTo(bladeTipX, bladeTipY);
+        pctx.stroke();
+
+        // Blade Edge Sharp Highlight
+        pctx.strokeStyle = '#ffffff';
+        pctx.shadowBlur = 0;
+        pctx.lineWidth = 1.5;
+        pctx.beginPath();
+        pctx.moveTo(guardCenterX, guardCenterY);
+        pctx.lineTo(bladeTipX, bladeTipY);
+        pctx.stroke();
+
+        // Pointy Tip Flare
+        pctx.fillStyle = '#ffffff';
+        pctx.shadowColor = '#38bdf8';
+        pctx.shadowBlur = 16;
+        pctx.beginPath();
+        pctx.arc(bladeTipX, bladeTipY, 3, 0, Math.PI * 2);
+        pctx.fill();
+
+        pctx.restore();
+        return;
+      }
+
+      // --- EXISTING MODES: Core Emitter & Radial Particles ---
+      const coreY = Math.max(0, mainY);
+      const coreRadius = applyScale ? (8 + coreY * 18) : 14;
+      const coreAlpha = applyAlpha ? Math.min(1, Math.max(0.1, mainY)) : 0.8;
+
+      pctx.save();
+      pctx.fillStyle = `rgba(34, 211, 238, ${coreAlpha * 0.25})`;
+      pctx.beginPath();
+      pctx.arc(centerX, centerY, coreRadius * 2.5, 0, Math.PI * 2);
+      pctx.fill();
+
+      pctx.fillStyle = `rgba(255, 255, 255, ${coreAlpha})`;
+      pctx.shadowColor = '#22d3ee';
+      pctx.shadowBlur = 15;
+      pctx.beginPath();
+      pctx.arc(centerX, centerY, coreRadius * 0.8, 0, Math.PI * 2);
+      pctx.fill();
+      pctx.restore();
+
+      if (state.vfxMode === 'core') return;
+
+      // Draw multi-particle burst
+      state.particles.forEach(p => {
+        let pt = mainT - p.staggerPhase;
+        if (pt < 0) pt += 1.0;
+        const py = evaluateGraph(pt);
+
+        let px = centerX;
+        let pyPos = centerY;
+        const dist = applyPos ? (py * p.baseRadius * 1.3) : p.baseRadius;
+
+        if (state.vfxMode === 'burst') {
+          px = centerX + Math.cos(p.angle) * dist;
+          pyPos = centerY + Math.sin(p.angle) * dist;
+        } else if (state.vfxMode === 'orbit') {
+          const spinAngle = p.angle + pt * Math.PI * 2 * p.spinSpeed;
+          px = centerX + Math.cos(spinAngle) * dist;
+          pyPos = centerY + Math.sin(spinAngle) * dist * 0.65;
+        } else if (state.vfxMode === 'float') {
+          px = centerX + Math.sin(p.angle * 2 + pt * 6) * 35;
+          pyPos = centerY + 65 - dist * 1.6;
+        }
+
+        const pRadius = applyScale ? Math.max(2, 3 + py * 7) : 5;
+        const pOpacity = applyAlpha ? Math.min(1, Math.max(0, py)) : 0.85;
+
+        pctx.save();
+        pctx.strokeStyle = `rgba(34, 211, 238, ${pOpacity * 0.35})`;
+        pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(centerX, centerY);
+        pctx.lineTo(px, pyPos);
+        pctx.stroke();
+
+        pctx.fillStyle = p.color;
+        pctx.shadowColor = p.color;
+        pctx.shadowBlur = 10;
+        pctx.globalAlpha = pOpacity;
+        pctx.beginPath();
+        pctx.arc(px, pyPos, pRadius, 0, Math.PI * 2);
+        pctx.fill();
+        pctx.restore();
+      });
+    }
+
+    function renderCurveCanvas() {
+      const w = canvas.parentElement.clientWidth;
+      const h = canvas.parentElement.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+      }
+      ctx.resetTransform?.();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      // Normalization Box [0..1]
+      const boxP0 = toScreen(0, 1);
+      const boxP1 = toScreen(1, 0);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+      ctx.fillRect(boxP0.x, boxP0.y, boxP1.x - boxP0.x, boxP1.y - boxP0.y);
+
+      // Grid steps
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let xStep = 0.0; xStep <= 1.05; xStep += 0.25) {
+        const pA = toScreen(xStep, view.minY);
+        const pB = toScreen(xStep, view.maxY);
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px Fira Code';
+        const labelPos = toScreen(xStep, 0);
+        ctx.fillText(xStep.toFixed(2), labelPos.x - 12, labelPos.y + 15);
+      }
+
+      for (let yStep = 0.0; yStep <= 1.05; yStep += 0.25) {
+        const pA = toScreen(view.minX, yStep);
+        const pB = toScreen(view.maxX, yStep);
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px Fira Code';
+        const labelPos = toScreen(0, yStep);
+        ctx.fillText(yStep.toFixed(2), labelPos.x - 28, labelPos.y + 3);
+      }
+
+      // Main Axes
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const axisX1 = toScreen(view.minX, 0);
+      const axisX2 = toScreen(view.maxX, 0);
+      ctx.moveTo(axisX1.x, axisX1.y);
+      ctx.lineTo(axisX2.x, axisX2.y);
+      const axisY1 = toScreen(0, view.minY);
+      const axisY2 = toScreen(0, view.maxY);
+      ctx.moveTo(axisY1.x, axisY1.y);
+      ctx.lineTo(axisY2.x, axisY2.y);
+      ctx.stroke();
+
+      // [0..1] boundary border
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
+      ctx.strokeRect(boxP0.x, boxP0.y, boxP1.x - boxP0.x, boxP1.y - boxP0.y);
+
+      // Draw Main Curve
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#22d3ee';
+      ctx.shadowColor = '#06b6d4';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+
+      const samples = 120;
+      for (let i = 0; i <= samples; i++) {
+        const tVal = i / samples;
+        const yVal = evaluateGraph(tVal);
+        const pt = toScreen(tVal, yVal);
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw Bézier Handles
+      if (state.mode === 'bezier') {
+        const { p0, p1, p2, p3 } = state.handles;
+        const s0 = toScreen(p0.x, p0.y);
+        const s1 = toScreen(p1.x, p1.y);
+        const s2 = toScreen(p2.x, p2.y);
+        const s3 = toScreen(p3.x, p3.y);
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#f472b6';
+        ctx.beginPath();
+        ctx.moveTo(s3.x, s3.y);
+        ctx.lineTo(s2.x, s2.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        drawHandle(s0, '#94a3b8', 'P0', 6);
+        drawHandle(s1, '#22d3ee', 'P1', 7);
+        drawHandle(s2, '#e879f9', 'P2', 7);
+        drawHandle(s3, '#94a3b8', 'P3', 6);
+      }
+
+      // Draw Scrubber Indicator Line
+      const curT = state.currentTime;
+      const curY = evaluateGraph(curT);
+      const curPt = toScreen(curT, curY);
+
+      ctx.strokeStyle = 'rgba(232, 121, 249, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      const topTracker = toScreen(curT, view.maxY);
+      const bottomTracker = toScreen(curT, view.minY);
+      ctx.moveTo(topTracker.x, topTracker.y);
+      ctx.lineTo(bottomTracker.x, bottomTracker.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Glow Ball
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#e879f9';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(curPt.x, curPt.y, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawHandle(pt, color, label, radius) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#04060a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.font = '10px Fira Code';
+      ctx.fillText(label, pt.x + 8, pt.y - 8);
+    }
+
+    function getPointerDistance(sx, sy, p) {
+      const pt = toScreen(p.x, p.y);
+      const dx = sx - pt.x;
+      const dy = sy - pt.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function onPointerDown(e) {
+      if (state.mode !== 'bezier') return;
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+
+      const handles = ['p1', 'p2', 'p0', 'p3'];
+      const hitRadius = 24;
+
+      for (const h of handles) {
+        if (getPointerDistance(sx, sy, state.handles[h]) <= hitRadius) {
+          state.activeDrag = h;
+          window.addEventListener('mousemove', onPointerMove);
+          window.addEventListener('mouseup', onPointerUp);
+          window.addEventListener('touchmove', onPointerMove, { passive: false });
+          window.addEventListener('touchend', onPointerUp);
+          e.preventDefault();
+          return;
+        }
+      }
+    }
+
+    function onPointerMove(e) {
+      if (!state.activeDrag) return;
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+
+      const world = toWorld(sx, sy);
+      state.handles[state.activeDrag].x = Math.round(world.x * 100) / 100;
+      state.handles[state.activeDrag].y = Math.round(world.y * 100) / 100;
+      highlightActivePresetCard(null);
+
+      syncHandleInputs();
+      updateOutputs();
+      renderCurveCanvas();
+    }
+
+    function onPointerUp() {
+      state.activeDrag = null;
+      window.removeEventListener('mousemove', onPointerMove);
+      window.removeEventListener('mouseup', onPointerUp);
+      window.removeEventListener('touchmove', onPointerMove);
+      window.removeEventListener('touchend', onPointerUp);
+    }
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+
+    function syncHandleInputs() {
+      document.getElementById('p0x').value = state.handles.p0.x.toFixed(2);
+      document.getElementById('p0y').value = state.handles.p0.y.toFixed(2);
+      document.getElementById('p1x').value = state.handles.p1.x.toFixed(2);
+      document.getElementById('p1y').value = state.handles.p1.y.toFixed(2);
+      document.getElementById('p2x').value = state.handles.p2.x.toFixed(2);
+      document.getElementById('p2y').value = state.handles.p2.y.toFixed(2);
+      document.getElementById('p3x').value = state.handles.p3.x.toFixed(2);
+      document.getElementById('p3y').value = state.handles.p3.y.toFixed(2);
+    }
+
+    function updateHandleFromInput() {
+      state.handles.p0.x = parseFloat(document.getElementById('p0x').value) || 0;
+      state.handles.p0.y = parseFloat(document.getElementById('p0y').value) || 0;
+      state.handles.p1.x = parseFloat(document.getElementById('p1x').value) || 0;
+      state.handles.p1.y = parseFloat(document.getElementById('p1y').value) || 0;
+      state.handles.p2.x = parseFloat(document.getElementById('p2x').value) || 0;
+      state.handles.p2.y = parseFloat(document.getElementById('p2y').value) || 0;
+      state.handles.p3.x = parseFloat(document.getElementById('p3x').value) || 0;
+      state.handles.p3.y = parseFloat(document.getElementById('p3y').value) || 0;
+      updateOutputs();
+      renderCurveCanvas();
+    }
+
+    let lastTimestamp = 0;
+    function vfxLoop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const delta = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+
+      if (state.isPlaying) {
+        state.currentTime += delta * 0.5 * state.speed;
+        if (state.currentTime > 1.0) state.currentTime = 0.0;
+        scrubber.value = state.currentTime;
+      }
+
+      const t = state.currentTime;
+      const y = evaluateGraph(t);
+
+      scrubberLabel.textContent = t.toFixed(2);
+      infoT.textContent = t.toFixed(2);
+      infoY.textContent = y.toFixed(2);
+      vfxValBadge.textContent = y.toFixed(2);
+
+      renderParticleSimulation();
+      renderCurveCanvas();
+
+      requestAnimationFrame(vfxLoop);
+    }
+
+    function togglePlay() {
+      state.isPlaying = !state.isPlaying;
+      document.getElementById('play-icon').classList.toggle('hidden', state.isPlaying);
+      document.getElementById('pause-icon').classList.toggle('hidden', !state.isPlaying);
+    }
+
+    function onScrub(val) {
+      state.currentTime = parseFloat(val);
+      state.isPlaying = false;
+      document.getElementById('play-icon').classList.remove('hidden');
+      document.getElementById('pause-icon').classList.add('hidden');
+    }
+
+    function setSpeed(val) {
+      state.speed = val;
+      speedLabel.textContent = `${val.toFixed(1)}x`;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      const bezierBtn = document.getElementById('mode-bezier-btn');
+      const exprBtn = document.getElementById('mode-expr-btn');
+      const bezierControls = document.getElementById('bezier-controls');
+      const exprControls = document.getElementById('expression-controls');
+      const hint = document.getElementById('editor-hint');
+
+      if (mode === 'bezier') {
+        bezierBtn.className = 'px-3 py-1.5 rounded-lg transition-all text-white bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm';
+        exprBtn.className = 'px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white';
+        bezierControls.classList.remove('hidden');
+        exprControls.classList.add('hidden');
+        hint.innerHTML = 'ลาก Handle สีฟ้า <span class="text-cyan-400 font-bold">P1</span> และชมพู <span class="text-fuchsia-400 font-bold">P2</span> เพื่อปรับแต่งเส้นโค้ง';
+      } else {
+        exprBtn.className = 'px-3 py-1.5 rounded-lg transition-all text-white bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm';
+        bezierBtn.className = 'px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white';
+        bezierControls.classList.add('hidden');
+        exprControls.classList.remove('hidden');
+        hint.innerHTML = 'โหมด Custom Expression: กราฟและโหนดจะถูกแปลงตามสมการคณิตศาสตร์ที่ระบุ';
+      }
+      updateOutputs();
+      renderCurveCanvas();
+    }
+
+    function applyCustomFormula() {
+      const val = formulaInput.value.trim();
+      try {
+        const testRes = evalCustomExpression(0.5, val);
+        if (isNaN(testRes)) throw new Error('Result is NaN');
+        formulaError.classList.add('hidden');
+        state.customExpr = val;
+        highlightActivePresetCard(null);
+        tipTitle.textContent = 'สมการแบบกำหนดเอง:';
+        tipContent.textContent = val;
+        updateOutputs();
+        renderCurveCanvas();
+      } catch (err) {
+        formulaError.textContent = 'Syntax Error: ' + err.message;
+        formulaError.classList.remove('hidden');
+      }
+    }
+
+    function loadPreset(preset) {
+      highlightActivePresetCard(preset.id);
+      tipTitle.textContent = `วิธีนำ ${preset.name} ไปต่อในกราฟ:`;
+      tipContent.textContent = preset.tip || preset.desc;
+
+      if (preset.type === 'bezier') {
+        setMode('bezier');
+        state.handles.p0 = { x: preset.p0[0], y: preset.p0[1] };
+        state.handles.p1 = { x: preset.p1[0], y: preset.p1[1] };
+        state.handles.p2 = { x: preset.p2[0], y: preset.p2[1] };
+        state.handles.p3 = { x: preset.p3[0], y: preset.p3[1] };
+        syncHandleInputs();
+      } else {
+        setMode('expression');
+        formulaInput.value = preset.expr;
+        state.customExpr = preset.expr;
+      }
+      updateOutputs();
+      renderCurveCanvas();
+    }
+
+    function resetCurrentCurve() {
+      loadPreset(state.presets[0]);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      toastMsg.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2200);
+    }
+
+    function copyCurrentCode() {
+      const code = codeOutput.textContent;
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = code;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast('คัดลอกโค้ดลงคลิปบอร์ดแล้ว!');
+    }
+
+    window.addEventListener('resize', () => {
+      renderCurveCanvas();
+      renderParticleSimulation();
+      if (state.activeTab === 'node-graph') {
+        renderNodeGraph();
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initCategoryPills();
+      renderPresetGrid();
+      initParticles();
+      syncHandleInputs();
+      setupNodeGraphInteractions();
+      switchTab('node-graph');
+      
+      const defaultPreset = state.presets.find(p => p.id === 'smoothstep');
+      if (defaultPreset) loadPreset(defaultPreset);
+
+      requestAnimationFrame(vfxLoop);
+    });
+  </script>
+</body>
+</html>

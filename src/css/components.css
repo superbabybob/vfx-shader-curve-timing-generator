@@ -1,0 +1,618 @@
+/* ═══════════════════════════════════════════════════════
+   Component styles — Buttons, cards, inputs, tabs, toast
+   Follows Tempo Workbench UI component anatomy
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Layout ── */
+.vfx-app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--vfx-app);
+}
+
+.vfx-main {
+  flex: 1;
+  padding: 12px 16px;
+  max-width: 1760px;
+  width: 100%;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .vfx-main {
+    grid-template-columns: repeat(12, 1fr);
+    padding: 16px 32px;
+  }
+  .vfx-col-left  { grid-column: span 6; }
+  .vfx-col-right { grid-column: span 6; }
+}
+
+/* ── Header ── */
+.vfx-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--vfx-header);
+  border-bottom: 1px solid var(--vfx-border);
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .vfx-header { padding: 10px 32px; }
+}
+
+.vfx-header__logo {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--vfx-radius-card);
+  background: var(--vfx-action);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: var(--vfx-shadow-card);
+}
+
+.vfx-header__title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vfx-header__subtitle {
+  font-size: 11px;
+  color: var(--vfx-muted);
+}
+
+.vfx-version-badge {
+  font-size: 10px;
+  font-family: 'Fira Code', monospace;
+  font-weight: 600;
+  background: var(--vfx-action-soft);
+  color: var(--vfx-action);
+  border: 1px solid var(--vfx-action);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* ── Cards (Tempo anatomy) ── */
+.vfx-card {
+  background: var(--vfx-card);
+  border: 1px solid var(--vfx-border);
+  border-radius: var(--vfx-radius-card);
+  box-shadow: var(--vfx-shadow-card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vfx-card:hover {
+  box-shadow: var(--vfx-shadow-hover);
+}
+
+.vfx-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vfx-border);
+}
+
+.vfx-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vfx-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vfx-card__section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vfx-text-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Buttons (Tempo spec: min 32px, 6-8px radius) ── */
+.vfx-btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: var(--vfx-radius-control);
+  border: 1px solid var(--vfx-border);
+  background: var(--vfx-surface);
+  color: var(--vfx-text);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out,
+    transform 90ms ease-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vfx-btn:hover {
+  border-color: var(--vfx-border-strong);
+  box-shadow: var(--vfx-shadow-card);
+}
+
+.vfx-btn:active {
+  transform: scale(0.97);
+}
+
+.vfx-btn--primary {
+  background: var(--vfx-action);
+  border-color: var(--vfx-action);
+  color: #fff;
+}
+
+.vfx-btn--primary:hover {
+  filter: brightness(1.1);
+}
+
+.vfx-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.vfx-btn--ghost:hover {
+  background: var(--vfx-surface);
+  border-color: var(--vfx-border);
+}
+
+/* ── Tab bar (Tempo grouped controls) ── */
+.vfx-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  background: var(--vfx-surface);
+  padding: 3px;
+  border-radius: var(--vfx-radius-control);
+  border: 1px solid var(--vfx-border);
+}
+
+.vfx-tab {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Fira Code', monospace;
+  font-weight: 500;
+  color: var(--vfx-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all var(--vfx-dur-fast) ease-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.vfx-tab:hover {
+  color: var(--vfx-text);
+}
+
+.vfx-tab--active {
+  background: var(--vfx-action-soft);
+  color: var(--vfx-action);
+  font-weight: 600;
+}
+
+.vfx-tab__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vfx-action);
+}
+
+/* ── Inputs ── */
+.vfx-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--vfx-inset);
+  border: 1px solid var(--vfx-border);
+  border-radius: var(--vfx-radius-control);
+  color: var(--vfx-text);
+  font-size: 12px;
+  transition: border-color var(--vfx-dur-fast) ease-out;
+}
+
+.vfx-input:focus {
+  border-color: var(--vfx-action);
+  outline: none;
+}
+
+.vfx-input--mono {
+  font-family: 'Fira Code', monospace;
+}
+
+.vfx-input--sm {
+  padding: 4px 6px;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ── Range slider ── */
+input[type="range"] {
+  accent-color: var(--vfx-action);
+}
+
+/* ── Canvas container ── */
+.vfx-canvas-wrap {
+  position: relative;
+  width: 100%;
+  background: var(--vfx-canvas-bg);
+  border-radius: var(--vfx-radius-card);
+  border: 1px solid var(--vfx-border);
+  overflow: hidden;
+}
+
+.vfx-canvas-wrap canvas,
+.vfx-canvas-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.vfx-canvas-info {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--vfx-card);
+  border: 1px solid var(--vfx-border);
+  padding: 4px 10px;
+  border-radius: var(--vfx-radius-control);
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--vfx-text-2);
+  pointer-events: none;
+  box-shadow: var(--vfx-shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vfx-canvas-badge {
+  position: absolute;
+  font-size: 10px;
+  background: var(--vfx-card);
+  border: 1px solid var(--vfx-border);
+  padding: 3px 10px;
+  border-radius: var(--vfx-radius-control);
+  pointer-events: none;
+  box-shadow: var(--vfx-shadow-card);
+  color: var(--vfx-muted);
+}
+
+/* ── Node graph grid background ── */
+.vfx-node-grid {
+  background-size: 24px 24px;
+  background-image:
+    linear-gradient(to right, var(--vfx-canvas-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--vfx-canvas-grid) 1px, transparent 1px);
+}
+
+/* ── Preset card ── */
+.vfx-preset {
+  background: var(--vfx-surface);
+  border: 1px solid var(--vfx-border);
+  border-radius: var(--vfx-radius-card);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-height: 68px;
+  transition:
+    border-color var(--vfx-dur-fast) ease-out,
+    box-shadow var(--vfx-dur-fast) ease-out;
+}
+
+.vfx-preset:hover {
+  border-color: var(--vfx-border-strong);
+  box-shadow: var(--vfx-shadow-hover);
+}
+
+.vfx-preset--active {
+  border-color: var(--vfx-action);
+  box-shadow: 0 0 0 1px var(--vfx-action), var(--vfx-shadow-hover);
+}
+
+.vfx-preset__thumb {
+  width: 76px;
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--vfx-inset);
+  border-radius: var(--vfx-radius-control);
+  border: 1px solid var(--vfx-border);
+  overflow: hidden;
+}
+
+.vfx-preset__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vfx-text);
+}
+
+.vfx-preset:hover .vfx-preset__name {
+  color: var(--vfx-action);
+}
+
+.vfx-preset__badge {
+  font-size: 10px;
+  font-family: 'Fira Code', monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--vfx-inset);
+  color: var(--vfx-action);
+  border: 1px solid var(--vfx-border);
+  flex-shrink: 0;
+}
+
+.vfx-preset__desc {
+  font-size: 11px;
+  color: var(--vfx-muted);
+}
+
+/* ── Category pill ── */
+.vfx-pill {
+  padding: 4px 10px;
+  border-radius: var(--vfx-radius-control);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--vfx-border);
+  background: var(--vfx-inset);
+  color: var(--vfx-muted);
+  cursor: pointer;
+  transition: all var(--vfx-dur-fast) ease-out;
+}
+
+.vfx-pill:hover {
+  color: var(--vfx-text);
+  border-color: var(--vfx-border-strong);
+}
+
+.vfx-pill--active {
+  background: var(--vfx-action-soft);
+  color: var(--vfx-action);
+  border-color: var(--vfx-action);
+  font-weight: 600;
+}
+
+/* ── Code block ── */
+.vfx-code-block {
+  position: relative;
+  background: var(--vfx-inset);
+  border: 1px solid var(--vfx-border);
+  border-radius: var(--vfx-radius-card);
+  padding: 14px;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--vfx-success);
+  overflow-x: auto;
+  min-height: 200px;
+  max-height: 300px;
+  line-height: 1.6;
+}
+
+/* ── Tip box (info footer) ── */
+.vfx-tip {
+  background: var(--vfx-action-soft);
+  border: 1px solid var(--vfx-action);
+  border-radius: var(--vfx-radius-card);
+  padding: 12px;
+  font-size: 12px;
+  color: var(--vfx-text-2);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.vfx-tip__icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.vfx-tip__title {
+  font-weight: 600;
+  color: var(--vfx-action);
+}
+
+/* ── Toast notification ── */
+.vfx-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  background: var(--vfx-action);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--vfx-radius-card);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--vfx-shadow-raised);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition:
+    opacity var(--vfx-dur-med) var(--vfx-ease-out),
+    transform var(--vfx-dur-med) var(--vfx-ease-out);
+}
+
+.vfx-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* ── Status indicator ── */
+.vfx-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vfx-status-dot--live {
+  background: var(--vfx-success);
+  animation: vfx-pulse 2s ease-in-out infinite;
+}
+
+.vfx-status-dot--active {
+  background: var(--vfx-action);
+}
+
+@keyframes vfx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Bézier control panel ── */
+.vfx-bezier-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: var(--vfx-surface);
+  padding: 10px;
+  border-radius: var(--vfx-radius-card);
+  border: 1px solid var(--vfx-border);
+}
+
+@media (min-width: 640px) {
+  .vfx-bezier-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.vfx-bezier-grid label {
+  font-size: 10px;
+  font-family: 'Fira Code', monospace;
+  color: var(--vfx-muted);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.vfx-bezier-grid .handle-p1 label { color: var(--vfx-curve-handle-1); }
+.vfx-bezier-grid .handle-p2 label { color: var(--vfx-curve-handle-2); }
+
+.vfx-bezier-grid .handle-p1 input {
+  border-color: var(--vfx-curve-handle-1);
+  color: var(--vfx-curve-handle-1);
+}
+.vfx-bezier-grid .handle-p2 input {
+  border-color: var(--vfx-curve-handle-2);
+  color: var(--vfx-curve-handle-2);
+}
+
+/* ── Simulation controls ── */
+.vfx-sim-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vfx-sim-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vfx-sim-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-size: 11px;
+  color: var(--vfx-muted);
+}
+
+@media (min-width: 640px) {
+  .vfx-sim-options { grid-template-columns: repeat(4, 1fr); }
+}
+
+.vfx-sim-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--vfx-surface);
+  padding: 4px 8px;
+  border-radius: var(--vfx-radius-control);
+  border: 1px solid var(--vfx-border);
+}
+
+/* ── Recipe steps ── */
+.vfx-recipe {
+  background: var(--vfx-surface);
+  border: 1px solid var(--vfx-border);
+  border-radius: var(--vfx-radius-card);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vfx-recipe__list {
+  font-size: 11px;
+  font-family: 'Fira Code', monospace;
+  color: var(--vfx-text-2);
+  list-style: decimal inside;
+  line-height: 1.65;
+  padding-left: 4px;
+}
+
+.vfx-recipe__list li + li {
+  margin-top: 4px;
+}
+
+/* ── Theme toggle ── */
+.vfx-theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--vfx-radius-control);
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background var(--vfx-dur-fast) ease-out;
+}
+
+.vfx-theme-toggle:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ── Checkbox ── */
+input[type="checkbox"] {
+  accent-color: var(--vfx-action);
+  border-radius: 3px;
+}

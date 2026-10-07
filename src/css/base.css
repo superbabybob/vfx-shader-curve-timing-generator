@@ -1,0 +1,94 @@
+/* ═══════════════════════════════════════════════════════
+   Base — Reset, typography, scrollbars, global utilities
+   ═══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', 'Prompt', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  background: var(--vfx-app);
+  color: var(--vfx-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection {
+  background: var(--vfx-action);
+  color: #fff;
+}
+
+/* Scrollbar — thin, neutral */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--vfx-inset); }
+::-webkit-scrollbar-thumb {
+  background: var(--vfx-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vfx-border-strong);
+}
+
+/* Monospace for data */
+.font-mono {
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+/* Focus ring — Tempo spec: 2px action ring */
+:focus-visible {
+  outline: 2px solid var(--vfx-action);
+  outline-offset: 2px;
+}
+
+/* Theme transition helper */
+.vfx-theme-transition,
+.vfx-theme-transition * {
+  transition:
+    color 75ms ease-out,
+    background-color 75ms ease-out,
+    border-color 75ms ease-out,
+    box-shadow 75ms ease-out !important;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.no-motion, .no-motion *, .no-motion *::before, .no-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* Line clamping */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

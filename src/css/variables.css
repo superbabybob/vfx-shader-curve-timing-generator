@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════
+   VFX Shader Curve & Timing Generator — Design Tokens
+   Based on Tempo Workbench UI visual system (Dark Theme)
+   Neutral charcoal + action-blue + domain-specific accents
+   ═══════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ── Surfaces (Tempo layered depth - Neutral Charcoal) ── */
+  --vfx-app:           #15171C;
+  --vfx-grid:          #1C1F26;
+  --vfx-panel:         #1C1F26;
+  --vfx-panel-alt:     #181A20;
+  --vfx-surface:       #242832;
+  --vfx-card:          #2F3442;
+  --vfx-raised:        #2D3340;
+  --vfx-inset:         #111317;
+
+  /* ── Borders ── */
+  --vfx-border:        #39404F;
+  --vfx-border-strong: #475062;
+
+  /* ── Text ── */
+  --vfx-text:          #FFFFFF;
+  --vfx-text-2:        #C4C9D4;
+  --vfx-muted:         #979EAC;
+
+  /* ── Header chrome ── */
+  --vfx-header:        #111317;
+  --vfx-header-2:      #171A20;
+
+  /* ── Semantic (Tempo Action Blue, Success, Warning, Danger) ── */
+  --vfx-action:        #4C9AFF;
+  --vfx-action-soft:   rgb(76 154 255 / 14%);
+  --vfx-success:       #36B37E;
+  --vfx-warning:       #FBBF24;
+  --vfx-danger:        #F87171;
+  --vfx-accent:        #A78BFA;
+
+  /* ── Domain accents (curve editor) ── */
+  --vfx-curve-primary:   #4C9AFF;
+  --vfx-curve-secondary: #A78BFA;
+  --vfx-curve-handle-1:  #4C9AFF;
+  --vfx-curve-handle-2:  #A78BFA;
+  --vfx-curve-glow:      rgba(76, 154, 255, 0.30);
+  --vfx-particle-glow:   rgba(76, 154, 255, 0.40);
+
+  /* ── Canvas internals ── */
+  --vfx-canvas-bg:       #111317;
+  --vfx-canvas-grid:     rgba(255,255,255,0.04);
+  --vfx-canvas-axis:     #475062;
+  --vfx-canvas-box:      rgba(76, 154, 255, 0.06);
+  --vfx-canvas-box-stroke: rgba(76, 154, 255, 0.20);
+
+  /* ── Shadows (Tempo depth ladder) ── */
+  --vfx-shadow-card:   0 1px 3px rgb(0 0 0 / 28%), 0 3px 8px rgb(0 0 0 / 22%);
+  --vfx-shadow-hover:  0 2px 8px rgb(0 0 0 / 33%), 0 6px 16px rgb(0 0 0 / 25%);
+  --vfx-shadow-raised: 0 5px 14px rgb(0 0 0 / 35%), 0 10px 22px rgb(0 0 0 / 28%);
+
+  /* ── Shape ── */
+  --vfx-radius-control: 6px;
+  --vfx-radius-card:    8px;
+  --vfx-radius-modal:   12px;
+
+  /* ── Motion (Tempo spec) ── */
+  --vfx-ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+  --vfx-dur-fast:  90ms;
+  --vfx-dur-med:   150ms;
+  --vfx-dur-slow:  280ms;
+}
