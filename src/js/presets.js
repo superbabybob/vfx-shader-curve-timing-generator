@@ -469,7 +469,7 @@ export const presets = [
     "type": "expression",
     "desc": "สั่นสองรอบและลดแรงจนเป็นศูนย์ ใช้กับ ring หรือ shake",
     "tip": "ในกราฟ: t×4π → Sine แล้วคูณ (1−t); ผลลัพธ์มีค่าติดลบ",
-    "expr": "(1 - t) * sin(FOUR_PI * t)",
+    "expr": "(1 - t) * sin(PI * 4 * t)",
     "badge": "linear decay × sine",
     "nodeType": "custom"
   },

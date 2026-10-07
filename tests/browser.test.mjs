@@ -144,6 +144,12 @@ try {
  assert.ok(constantsCode.includes('#ifndef PI') && constantsCode.includes('TWO_PI'));
  assert.ok(!constantsCode.includes('float PI') && !constantsCode.includes('float TAU'));
  await page.locator('#expose-shader-params').uncheck();
+ await page.locator('#custom-formula-input').fill('sin(FOUR_PI * t)');
+ await page.getByRole('button',{name:'Plot Curve'}).click();
+ assert.equal(await page.locator('#nodeGraphSvg [data-node-id="constant_PI"]').count(),1);
+ assert.equal(await page.locator('#nodeGraphSvg [data-node-id="constant_FOUR_PI"]').count(),0);
+ assert.ok((await page.locator('#nodeGraphSvg').textContent()).includes('(4)'));
+ await checkGraphLayout();
  await page.locator('#custom-formula-input').fill('sin(3.14159 * t)');
  await page.getByRole('button',{name:'Plot Curve'}).click();
  assert.equal(await page.locator('#custom-formula-input').inputValue(),'sin(PI * t)');

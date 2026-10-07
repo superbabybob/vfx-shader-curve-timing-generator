@@ -12,7 +12,10 @@ export function getBezierCompactFormula() { return hornerPolynomial('y','t'); }
 function emitShaderMath(ast){
   const lines=[], cache=new Map();
   function visit(n){
-    if(n.type==='number')return n.constantName?constantCodeName(n.constantName):floatLiteral(n.value);
+    if(n.type==='number'){
+      if(n.constantName==='FOUR_PI')return '(PI * 4.0)';
+      return n.constantName?constantCodeName(n.constantName):floatLiteral(n.value);
+    }
     if(n.type==='variable')return n.name;
     const key=JSON.stringify(n);
     if(cache.has(key))return cache.get(key);

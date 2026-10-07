@@ -327,3 +327,5 @@
 - Unity Constant Node รองรับ PI, TAU, PHI, E, SQRT2 ส่วนค่ามุมอื่นใช้ macro ในโค้ดหรือประกอบจาก PI ในกราฟตามต้องการ
 
 อ้างอิง: [Unity Constant Node](https://docs.unity3d.com/Packages/com.unity.shadergraph@17.0/manual/Constant-Node.html), [Unity ShaderLibrary Macros](https://github.com/Unity-Technologies/Graphics/blob/master/Packages/com.unity.render-pipelines.core/ShaderLibrary/Macros.hlsl), [GLSL ES specification: Built-in Constants](https://registry.khronos.org/OpenGL/specs/es/3.2/GLSL_ES_Specification_3.20.pdf)
+
+- FOUR_PI แสดงเป็น Constant PI → Multiply (4) แทนโหนด FOUR_PI; code export ใช้ `PI * 4.0` เช่นเดียวกัน Preset Tapered Ripple แสดงสูตร `sin(PI * 4 * t)`

@@ -383,6 +383,9 @@ export function buildGraphFromExpression(exprStr, paramValues = {}, locals = {},
 
       // Number literal
       if (astNode.type === 'number') {
+        if(astNode.constantName==='FOUR_PI'){
+          return compileNode({type:'binary',op:'*',left:{type:'number',value:Math.PI,constantName:'PI'},right:{type:'number',value:4}},level);
+        }
         if(astNode.constantName){
           const name=astNode.constantName,id=`constant_${name}`;
           if(!nodes.some(n=>n.id===id))nodes.push({id,title:`Constant (${name})`,type:'constant',value:astNode.value,x:30,y:0,w:160,h:86,outPort:String(astNode.value)});

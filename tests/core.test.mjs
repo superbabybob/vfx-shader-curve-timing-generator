@@ -185,7 +185,7 @@ const constantsDefs=extractExpressionParameters(constantsExpression);
 assert.equal(constantsDefs.length,0);
 state.customExpr=constantsExpression;state.parameterizedExpr=constantsDefs.parameterizedExpr;state.customParams={};
 const constantsGraph=generateNodeGraphModel();checkLayout(constantsGraph);
-assert.equal(constantsGraph.nodes.filter(n=>n.type==='constant').length,Object.keys(standardConstants).length);
+assert.equal(constantsGraph.nodes.filter(n=>n.type==='constant').length,Object.keys(standardConstants).length-1);
 assert.ok(!constantsGraph.nodes.some(n=>n.id.startsWith('param_')));
 assert.equal(constantsGraph.nodes.find(n=>n.id==='constant_PI').value,Math.PI);
 assert.ok(constantsGraph.wires.filter(w=>w.from==='constant_PI').length>=2);
@@ -208,6 +208,22 @@ assert.equal(roundExpressionNumbers('sin(3.14159*t)'), 'sin(PI*t)');
 assert.equal(extractExpressionParameters('sin(6.2831853*t)').length,0);
 assert.equal(extractExpressionParameters('sin(3.14*t)').length,1);
 assert.equal(extractExpressionParameters('sin(PI*t)+gain').map(d=>d.name).join(','),'gain');
+state.exposeShaderParams=false;
+// FOUR_PI expands into a shared PI node and an explicit Multiply by 4.
+state.mode='expression';state.customExpr='sin(FOUR_PI*t)';state.parameterizedExpr=state.customExpr;state.customParams={};
+const fourPiGraph=generateNodeGraphModel();checkLayout(fourPiGraph);
+assert.ok(!fourPiGraph.nodes.some(n=>n.id==='constant_FOUR_PI'));
+const fourPiMultiply=fourPiGraph.nodes.find(n=>n.op==='*' && n.args.some(a=>a.isConstant && a.value===4));
+assert.ok(fourPiMultiply);
+assert.ok(fourPiGraph.wires.some(w=>w.from==='constant_PI' && w.to===fourPiMultiply.id));
+for(const runtime of [false,true]){
+  state.exposeShaderParams=runtime;
+  const code=generateCodeSnippets();
+  assert.ok(code.hlsl.includes('PI * 4.0'));
+  assert.ok(!code.hlsl.includes('FOUR_PI'));
+  assert.ok(code.hlsl.includes('#ifndef PI'));
+  for(const t of [0,0.125,0.3,0.7,1])near(graphValue(fourPiGraph,t),Math.sin(4*Math.PI*t));
+}
 state.exposeShaderParams=false;
 // Y-only Bézier edits preserve a small fixed Horner graph and exact polynomial.
 state.mode='bezier';state.handles={p0:{x:0,y:0},p1:{x:1/3,y:0},p2:{x:2/3,y:1},p3:{x:1,y:1}};
