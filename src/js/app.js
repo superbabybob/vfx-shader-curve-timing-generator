@@ -1,3 +1,4 @@
+import {presetParameters, rememberPresetParameters, addComparison, captureGraph, comparisonColors} from './timing-comparison.js';
 /**
  * ═══════════════════════════════════════════════════════════
  * App — Main entry point, UI controllers, animation loop
@@ -18,6 +19,7 @@ import { evaluateExpression, extractExpressionParameters, roundExpressionNumbers
 
 // Attach presets to state
 state.presets = presets;
+let editingPresetId = null;
 
 // ── DOM Elements ──
 
@@ -240,6 +242,66 @@ function highlightActivePresetCard(id) {
 
 // ── Particles ──
 
+function syncEditedComparison() {
+  const graph = state.comparisonGraphs.find(g => g.id === state.editingComparisonId);
+  if (graph) Object.assign(graph, captureGraph(state, editingPresetId));
+}
+function editComparison(graph) {
+  state.editingComparisonId = null;
+  editingPresetId = graph.presetId;
+  highlightActivePresetCard(graph.presetId);
+  Object.assign(state, structuredClone({
+    mode: graph.mode, customExpr: graph.customExpr, parameterizedExpr: graph.parameterizedExpr,
+    customParams: graph.customParams, handles: graph.handles,
+    multiplyIntegerPowers: graph.multiplyIntegerPowers
+  }));
+  document.getElementById('multiply-integer-powers').checked = state.multiplyIntegerPowers;
+  document.getElementById('integer-power-hint').classList.toggle('hidden', !state.multiplyIntegerPowers);
+  formulaInput.value = state.customExpr;
+  syncHandleInputs();
+  window.setMode(state.mode);
+  state.editingComparisonId = graph.id;
+  renderComparisonControls();
+}
+function renderComparisonControls() {
+  document.getElementById('compare-count').textContent = state.comparisonGraphs.length + '/5';
+  document.getElementById('compare-add').disabled = state.comparisonGraphs.length >= 5;
+  const frames = document.getElementById('compare-frames');
+  frames.replaceChildren();
+  frames.classList.toggle('is-horizontal', state.vfxMode === 'linear1d');
+  frames.hidden = !['linear1d', 'vertical1d'].includes(state.vfxMode);
+  state.comparisonGraphs.forEach((graph, index) => {
+    const frame = document.createElement('div');
+    frame.className = 'vfx-track-frame' + (graph.id === state.editingComparisonId ? ' is-editing' : '');
+    frame.style.setProperty('--track-color', comparisonColors[index]);
+    frame.dataset.graphId = graph.id;
+    const edit = document.createElement('button');
+    edit.className = 'vfx-track-edit'; edit.title = 'Edit ' + graph.name;
+    edit.setAttribute('aria-label', 'Edit graph ' + (index + 1) + ': ' + graph.name);
+    const label = document.createElement('span'); label.textContent = (index + 1) + '. ' + graph.name;
+    edit.appendChild(label); edit.onclick = () => editComparison(graph);
+    const remove = document.createElement('button'); remove.className = 'vfx-track-remove';
+    remove.textContent = '\u00d7'; remove.setAttribute('aria-label', 'Remove graph ' + (index + 1));
+    remove.onclick = () => {
+      state.comparisonGraphs = state.comparisonGraphs.filter(g => g.id !== graph.id);
+      if (state.editingComparisonId === graph.id) state.editingComparisonId = null;
+      renderComparisonControls();
+    };
+    frame.append(edit, remove); frames.appendChild(frame);
+  });
+}
+function initComparisonControls() {
+  renderComparisonControls();
+  document.getElementById('compare-add').onclick = () => {
+    syncEditedComparison();
+    if (!addComparison(state.comparisonGraphs, captureGraph(state, editingPresetId))) return;
+    // A new copy is independent; editing the main graph won't change either copy until a frame is selected.
+    state.editingComparisonId = null;
+    if (!['linear1d', 'vertical1d'].includes(state.vfxMode)) window.setVfxMotionMode('vertical1d');
+    renderComparisonControls();
+  };
+}
+
 function initParticles() {
   state.particles = [];
   const colors = ['#4C9AFF', '#38bdf8', '#818cf8', '#A78BFA', '#c084fc'];
@@ -281,10 +343,12 @@ window.setParticleCount = function(n) {
 // ── VFX Motion Mode ──
 
 window.setVfxMotionMode = function(mode) {
+  if (!['burst', 'linear1d', 'vertical1d', 'slash'].includes(mode)) return;
   state.vfxMode = mode;
+  renderComparisonControls();
   state.slashHistory = [];
   state.linearHistory = [];
-  const modes = ['burst', 'linear1d', 'slash', 'orbit', 'float', 'core'];
+  const modes = ['burst', 'linear1d', 'vertical1d', 'slash'];
   modes.forEach(m => {
     const btn = document.getElementById(`mode-${m}-btn`);
     if (btn) {
@@ -296,6 +360,7 @@ window.setVfxMotionMode = function(mode) {
 // ── Outputs & Tab Switching ──
 
 function updateOutputs() {
+  syncEditedComparison();
   const snippets = state.activeTab === 'node-graph' ? null : generateCodeSnippets();
   if (codeOutput && snippets) {
     codeOutput.textContent = snippets[state.activeTab] || snippets.hlsl;
@@ -361,6 +426,14 @@ window.updateHandleFromInput = function(id) {
 };
 
 // ── Animation Loop ──
+
+window.setPlaybackSpeed = function(value) {
+  const parsed = Number(value);
+  if (String(value).trim() && Number.isFinite(parsed)) state.speed = Math.round(Math.max(.05, Math.min(3, parsed)) * 100) / 100;
+  document.getElementById('speed-slider').value = state.speed;
+  document.getElementById('speed-input').value = state.speed.toFixed(2);
+  speedLabel.textContent = state.speed.toFixed(2) + 'x';
+};
 
 let lastTimestamp = 0;
 
@@ -467,7 +540,8 @@ function renderCustomParameterSliders() {
   const roundedExpression=roundExpressionNumbers(state.customExpr);
   const expressionTemplate=state.multiplyIntegerPowers?roundLiteralPowerExponents(roundedExpression):roundedExpression;
   state.customExpr=expressionTemplate;formulaInput.value=expressionTemplate;
-  const detectedParams = extractExpressionParameters(expressionTemplate);
+  const preset = state.presets.find(p => p.id === editingPresetId);
+  const detectedParams = extractExpressionParameters(expressionTemplate, preset?.paramNames);
   state.parameterizedExpr = detectedParams.parameterizedExpr || state.customExpr;
 
   if (detectedParams.length === 0) {
@@ -520,6 +594,7 @@ function renderCustomParameterSliders() {
       if (label) label.textContent = newVal.toFixed(2);
 
       syncExpression();
+      rememberPresetParameters(editingPresetId, state.customParams);
 
       highlightActivePresetCard(null);
       state.slashHistory = []; state.linearHistory = [];
@@ -543,6 +618,7 @@ window.applyCustomFormula = function() {
     const testRes = evaluateExpression(definitions.parameterizedExpr, 0.5, defaults);
     if (!Number.isFinite(testRes)) throw new Error('Result is not finite at t=0.5');
     formulaError.classList.add('hidden');
+    editingPresetId = null;
     state.customExpr = normalized;
     state.mode = 'expression';
     state.customParams = {};
@@ -561,6 +637,9 @@ window.applyCustomFormula = function() {
 // ── Load Preset ──
 
 function loadPreset(preset) {
+  state.editingComparisonId = null;
+  renderComparisonControls();
+  editingPresetId = preset.id;
   state.customParams = {}; state.parameterizedExpr = '';
   state.slashHistory = []; state.linearHistory = [];
   highlightActivePresetCard(preset.id);
@@ -587,6 +666,7 @@ function loadPreset(preset) {
   setMode('expression');
   if (formulaInput) formulaInput.value = preset.expr;
   state.customExpr = preset.expr;
+  state.customParams = presetParameters(preset).params;
   renderCustomParameterSliders();
   updateOutputs();
   renderCurveCanvas(canvas, ctx);
@@ -650,6 +730,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initCategoryPills();
   renderPresetGrid();
   initParticles();
+  initComparisonControls();
   syncHandleInputs();
   setupNodeGraphInteractions(nodeGraphSvg);
   switchTab('node-graph');

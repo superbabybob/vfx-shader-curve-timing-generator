@@ -238,7 +238,7 @@ export function roundExpressionNumbers(expression){
   return result;
 }
 
-export function extractExpressionParameters(exprStr) {
+export function extractExpressionParameters(exprStr, paramNames = []) {
   exprStr=normalizeStandardConstantLiterals(exprStr);
   const tokens = tokenize(exprStr);
   const params = [];
@@ -253,7 +253,7 @@ export function extractExpressionParameters(exprStr) {
   if (!params.length) {
     const numbers = tokens.filter(tok => tok.type === TOKEN.NUMBER);
     numbers.forEach((tok, i) => {
-      const name = `param${i+1}`;
+      const name = paramNames[i] || `param${i+1}`;
       params.push({name, defaultVal: tok.value, min: 0, max: Math.ceil(Math.max(2, tok.value*2)*100)/100, step: 0.01, start:tok.start, end:tok.end});
     });
     [...params].reverse().forEach(p => {

@@ -12,7 +12,7 @@ A modular web workbench for designing, visualizing, and exporting timing curves,
 
 - **48 VFX Curve Presets**: Easing, Flash & Glow, Physics/Impact, Oscillations, and Multi-phase Stagger curves.
 - **Polynomial Bézier Editor**: Y-only handle editing with fixed X and loop-free Horner evaluation.
-- **Live Particle Simulation**: Radial Burst, 1D Track, Sword Slash VFX, Vortex Orbit, and Floating particles.
+- **Live Particle Simulation**: Horizontal and vertical tracks, Radial Burst, and Sword Slash VFX. Compare up to five snapshots of the current graph, click track frames to edit, and remove them with the corner ? button. Shared axes fit values outside 0?1; playback speed is adjustable from 0.05? to 3?.
 - **Visual Node Graph**: Interactive SVG representation of shader math nodes with Pan and Zoom.
 - **Realtime Optimization**: baked constants by default, shared multiplies for integer powers, constant folding and optional runtime parameters.
 - **Shader Code Export**: Direct export to HLSL/GLSL, Unity Shader Function, Compact Math, and CSS timing functions.

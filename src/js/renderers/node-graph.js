@@ -25,6 +25,33 @@ function svgPoint(svg, x, y) {
   const pt = svg.createSVGPoint(); pt.x=x; pt.y=y;
   return pt.matrixTransform(svg.getScreenCTM().inverse());
 }
+let draggedNode = null;
+const wireUpdates = [];
+function startNodeDrag(target, svg, x, y) {
+  const element = target.closest?.('[data-node-id]');
+  const node = renderedModel?.nodes.find(n => n.id === element?.dataset.nodeId);
+  if (!node) return false;
+  const point = svgPoint(svg, x, y);
+  draggedNode = {node, element, model: renderedModel, x: point.x, y: point.y, startX: node.x, startY: node.y};
+  element.parentNode.appendChild(element);
+  element.style.cursor = 'grabbing';
+  return true;
+}
+function moveNode(svg, x, y) {
+  if (!draggedNode) return false;
+  if (draggedNode.model !== renderedModel) { endNodeDrag(); return false; }
+  const point = svgPoint(svg, x, y);
+  const {node, element} = draggedNode;
+  node.x = draggedNode.startX + (point.x - draggedNode.x) / graphPan.scale;
+  node.y = draggedNode.startY + (point.y - draggedNode.y) / graphPan.scale;
+  element.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+  wireUpdates.forEach(update => update());
+  return true;
+}
+function endNodeDrag() {
+  if (draggedNode) draggedNode.element.style.cursor = 'grab';
+  draggedNode = null;
+}
 export function setupNodeGraphInteractions(nodeGraphSvg) {
   if (!nodeGraphSvg) return;
   const canvas=document.getElementById('node-graph-canvas');
@@ -42,6 +69,9 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
   }
 
   nodeGraphSvg.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    if (startNodeDrag(e.target, nodeGraphSvg, e.clientX, e.clientY)) return;
     graphPan.isDragging = true;
     const pt=svgPoint(nodeGraphSvg,e.clientX,e.clientY);
     graphPan.startX = pt.x - graphPan.x;
@@ -49,6 +79,7 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
   });
 
   window.addEventListener('mousemove', (e) => {
+    if (moveNode(nodeGraphSvg, e.clientX, e.clientY)) return;
     if (!graphPan.isDragging) return;
     const pt=svgPoint(nodeGraphSvg,e.clientX,e.clientY);
     graphPan.x = pt.x - graphPan.startX;
@@ -56,9 +87,12 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
     renderNodeGraph();
   });
 
-  window.addEventListener('mouseup', () => { graphPan.isDragging = false; });
+  window.addEventListener('mouseup', () => { graphPan.isDragging = false; endNodeDrag(); });
+
+  window.addEventListener('blur', () => { graphPan.isDragging = false; endNodeDrag(); });
 
   nodeGraphSvg.addEventListener('wheel', (e) => {
+    if (draggedNode) { e.preventDefault(); return; }
     e.preventDefault();
     const pt=svgPoint(nodeGraphSvg,e.clientX,e.clientY);
     const oldScale=graphPan.scale;
@@ -76,11 +110,14 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
   let lastTouchDist = 0;
   nodeGraphSvg.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
+      e.preventDefault();
+      if (startNodeDrag(e.target, nodeGraphSvg, e.touches[0].clientX, e.touches[0].clientY)) return;
       graphPan.isDragging = true;
       const pt=svgPoint(nodeGraphSvg,e.touches[0].clientX,e.touches[0].clientY);
       graphPan.startX = pt.x - graphPan.x;
       graphPan.startY = pt.y - graphPan.y;
     } else if (e.touches.length === 2) {
+      endNodeDrag();
       graphPan.isDragging = false;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -90,12 +127,14 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
 
   nodeGraphSvg.addEventListener('touchmove', (e) => {
     e.preventDefault();
+    if (e.touches.length === 1 && moveNode(nodeGraphSvg, e.touches[0].clientX, e.touches[0].clientY)) return;
     if (graphPan.isDragging && e.touches.length === 1) {
       const pt=svgPoint(nodeGraphSvg,e.touches[0].clientX,e.touches[0].clientY);
       graphPan.x = pt.x - graphPan.startX;
       graphPan.y = pt.y - graphPan.startY;
       renderNodeGraph();
     } else if (e.touches.length === 2) {
+      endNodeDrag();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
@@ -113,11 +152,12 @@ export function setupNodeGraphInteractions(nodeGraphSvg) {
   }, { passive: false });
 
   nodeGraphSvg.addEventListener('touchend', (e) => {
+    endNodeDrag();
     graphPan.isDragging = e.touches.length === 1;
     if(graphPan.isDragging){const pt=svgPoint(nodeGraphSvg,e.touches[0].clientX,e.touches[0].clientY);graphPan.startX=pt.x-graphPan.x;graphPan.startY=pt.y-graphPan.y;}
     lastTouchDist = 0;
   });
-  nodeGraphSvg.addEventListener('touchcancel',()=>{graphPan.isDragging=false;lastTouchDist=0;});
+  nodeGraphSvg.addEventListener('touchcancel',()=>{graphPan.isDragging=false;lastTouchDist=0;endNodeDrag();});
 }
 
 let _nodeGraphSvg = null;
@@ -164,6 +204,8 @@ export function renderNodeGraph() {
   const presetId=state.selectedPresetId;
   if(presetId && presetId!==displayedPreset){graphPan.x=0;graphPan.y=0;graphPan.scale=1;displayedPreset=presetId;}
   renderedRevision=model.revision;
+  endNodeDrag();
+  wireUpdates.length = 0;
   nodeLabels.clear();
   renderedModel=model;
   const style = getComputedStyle(document.documentElement);
@@ -246,6 +288,14 @@ export function renderNodeGraph() {
     path.setAttribute('stroke-width', '2.5');
     path.setAttribute('stroke-linecap', 'round');
     wireGroup.appendChild(path);
+    wireUpdates.push(() => {
+      const x1 = fromNode.x + fromNode.w, y1 = fromNode.y + outputY(fromNode);
+      const x2 = toNode.x, y2 = toNode.y + inputY(toNode, Math.max(0, toNode.inPorts?.indexOf(w.toPort) ?? 0));
+      const dx = Math.max(35, Math.abs(x2 - x1) * 0.45);
+      const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+      glow.setAttribute('d', d);
+      path.setAttribute('d', d);
+    });
   });
   rootG.appendChild(wireGroup);
 
@@ -255,6 +305,8 @@ export function renderNodeGraph() {
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('transform', `translate(${n.x}, ${n.y})`);
     g.dataset.nodeId=n.id;
+    g.style.cursor = 'grab';
+    g.style.userSelect = 'none';
     g.setAttribute('filter', 'url(#node-shadow)');
 
     const isMath = n.type === 'math' || n.type === 'group';
@@ -265,7 +317,7 @@ export function renderNodeGraph() {
     rect.setAttribute('height', n.h);
     rect.setAttribute('rx', '6');
     rect.setAttribute('fill', colorInset);
-    rect.setAttribute('stroke', colorBorder);
+    rect.setAttribute('stroke', n.type === 'constant' ? '#E5B567' : colorBorder);
     rect.setAttribute('stroke-width', '1.5');
     g.appendChild(rect);
 

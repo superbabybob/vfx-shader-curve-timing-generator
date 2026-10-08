@@ -79,14 +79,14 @@ try {
  await checkGraphLayout();
  if(process.env.POWER_SCREENSHOT)await page.locator('#nodeGraphSvg').screenshot({path:process.env.POWER_SCREENSHOT});
  await page.locator('#preset-card-smoothstep').click();
- assert.equal(await page.locator('#nodeGraphSvg [data-node-id="param_param1"]').count(),1);
- assert.equal(await page.locator('#nodeGraphSvg [data-node-id="param_param2"]').count(),1);
- assert.ok((await page.locator('#nodeGraphSvg').textContent()).includes('Edge1 (param1)'));
- assert.ok((await page.locator('#nodeGraphSvg').textContent()).includes('Edge2 (param2)'));
+ assert.equal(await page.locator('#nodeGraphSvg [data-node-id="param_start"]').count(),1);
+ assert.equal(await page.locator('#nodeGraphSvg [data-node-id="param_end"]').count(),1);
+ assert.ok((await page.locator('#nodeGraphSvg').textContent()).includes('Edge1 (start)'));
+ assert.ok((await page.locator('#nodeGraphSvg').textContent()).includes('Edge2 (end)'));
  await page.evaluate(()=>{window.parameterGraphRoot=document.querySelector('#nodeGraphSvg > g');});
- await page.locator('#slider-param-param1').fill('0.2');
+ await page.locator('#slider-param-start').fill('0.2');
  await page.evaluate(()=>new Promise(requestAnimationFrame));
- assert.ok((await page.locator('#nodeGraphSvg [data-node-id="param_param1"]').textContent()).includes('0.2'));
+ assert.ok((await page.locator('#nodeGraphSvg [data-node-id="param_start"]').textContent()).includes('0.2'));
  assert.ok(await page.evaluate(()=>window.parameterGraphRoot===document.querySelector('#nodeGraphSvg > g')));
  await checkGraphLayout();
  await page.locator('#preset-card-smoothstep').click();
@@ -168,10 +168,10 @@ try {
  assert.equal((await snapshot()).customParams.param2,4.2);
  assert.ok((await page.locator('#custom-formula-input').inputValue()).includes('exp(-4.2 * t)'));
  await page.locator('#preset-card-heartbeat-double-pulse').click();
- await page.locator('#slider-param-param3').fill('0.73');
- await page.locator('#slider-param-param1').fill('1.75');
- await page.locator('#slider-param-param2').fill('3.5');
- assert.equal(await page.locator('#slider-param-param1').getAttribute('step'),'0.01');
+ await page.locator('#slider-param-amp2').fill('0.73');
+ await page.locator('#slider-param-cycles1').fill('1.75');
+ await page.locator('#slider-param-sharp1').fill('3.5');
+ assert.equal(await page.locator('#slider-param-cycles1').getAttribute('step'),'0.01');
  const tunedFormula=await page.locator('#custom-formula-input').inputValue();
  assert.equal(tunedFormula,'pow(saturate(sin(t * TAU * 1.75)), 3.5) + 0.73 * pow(saturate(sin((t - 0.15) * TAU * 1)), 8)');
  const tunedBeforePlot=await page.evaluate(async()=> (await import('/src/js/math-engine.js')).evaluateGraph(0.2));
@@ -179,10 +179,10 @@ try {
  const tunedAfterPlot=await page.evaluate(async()=> (await import('/src/js/math-engine.js')).evaluateGraph(0.2));
  assert.ok(Math.abs(tunedBeforePlot-tunedAfterPlot)<1e-12);
  await page.locator('#preset-card-sine-wave-cycle').click();
- assert.equal((await snapshot()).customParams.param1,1);
+ assert.equal((await snapshot()).customParams.cycles,1);
  await page.locator('#scrubber').fill('0.5');
  assert.equal((await snapshot()).isPlaying,false);
- for(const mode of ['burst','linear1d','slash','orbit','float','core']){
+ for(const mode of ['linear1d','vertical1d','burst','slash']){
    await page.locator(`#mode-${mode}-btn`).click();await page.waitForTimeout(50);
    assert.equal((await snapshot()).vfxMode,mode);
  }

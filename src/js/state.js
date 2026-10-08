@@ -19,8 +19,8 @@ export const state = {
     p3: { x: 1.0, y: 1.0 }
   },
   customExpr: 'smoothstep(0.0, 1.0, t)',
-  parameterizedExpr: 'smoothstep(param1, param2, t)',
-  customParams: {param1:0,param2:1},
+  parameterizedExpr: 'smoothstep(start, end, t)',
+  customParams: {start:0,end:1},
   activeTab: 'node-graph',
   currentTime: 0.0,
   isPlaying: true,
@@ -29,6 +29,8 @@ export const state = {
 
   // Particle Simulation Settings
   vfxMode: 'burst',
+  comparisonGraphs: [],
+  editingComparisonId: null,
   particleCount: 12,
   particleStagger: 0.08,
   particles: [],

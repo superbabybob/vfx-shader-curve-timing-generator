@@ -1,7 +1,8 @@
+import {comparisonValue, comparisonColors, captureGraph, trackRange} from '../timing-comparison.js';
 /**
  * ═══════════════════════════════════════════════════════
  * Particle Simulation Renderer — Multi-mode VFX viewport
- * Modes: burst, linear1d, slash, orbit, float, core
+ * Modes: burst, linear1d, vertical1d, slash
  * ═══════════════════════════════════════════════════════
  */
 
@@ -34,7 +35,7 @@ export function renderParticleSimulation(particleCanvas, pctx) {
   const applyAlpha = document.getElementById('apply-alpha')?.checked ?? true;
 
   // --- LINEAR 1D ---
-  if (state.vfxMode === 'linear1d') {
+  if (state.vfxMode === 'linear1d' || state.vfxMode === 'vertical1d') {
     renderLinear1D(pctx, w, h, centerY, mainT, mainY, applyPos, applyScale, applyAlpha, colorPrimary);
     return;
   }
@@ -64,9 +65,7 @@ export function renderParticleSimulation(particleCanvas, pctx) {
   pctx.fill();
   pctx.restore();
 
-  if (state.vfxMode === 'core') return;
-
-  // Multi-particle burst / orbit / float
+  // Multi-particle burst
   state.particles.forEach(p => {
     let pt = mainT - p.staggerPhase;
     pt = ((pt % 1) + 1) % 1;
@@ -79,13 +78,8 @@ export function renderParticleSimulation(particleCanvas, pctx) {
     if (state.vfxMode === 'burst') {
       px = centerX + Math.cos(p.angle) * dist;
       pyPos = centerY + Math.sin(p.angle) * dist;
-    } else if (state.vfxMode === 'orbit') {
-      const spinAngle = p.angle + (applyPos ? py : pt) * Math.PI * 2 * p.spinSpeed;
-      px = centerX + Math.cos(spinAngle) * dist;
-      pyPos = centerY + Math.sin(spinAngle) * dist * 0.65;
-    } else if (state.vfxMode === 'float') {
-      px = centerX + Math.sin(p.angle * 2 + (applyPos ? py : pt) * 6) * 35;
-      pyPos = centerY + 65 - dist * 1.6;
+
+
     }
 
     const pRadius = applyScale ? Math.max(2, 3 + py * 7) : 5;
@@ -111,64 +105,61 @@ export function renderParticleSimulation(particleCanvas, pctx) {
 }
 
 function renderLinear1D(pctx, w, h, centerY, mainT, mainY, applyPos, applyScale, applyAlpha, colorPrimary) {
-  const trackStartX = w * 0.12;
-  const trackEndX = w * 0.88;
-  const trackY = centerY;
-  const trackLen = trackEndX - trackStartX;
-
-  pctx.save();
-  pctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--vfx-border').trim();
-  pctx.lineWidth = 3;
-  pctx.beginPath();
-  pctx.moveTo(trackStartX, trackY);
-  pctx.lineTo(trackEndX, trackY);
-  pctx.stroke();
-
-  [0.0, 0.25, 0.5, 0.75, 1.0].forEach(frac => {
-    const mx = trackStartX + trackLen * frac;
-    pctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--vfx-border-strong').trim();
-    pctx.lineWidth = 1.5;
-    pctx.beginPath();
-    pctx.moveTo(mx, trackY - 6);
-    pctx.lineTo(mx, trackY + 6);
-    pctx.stroke();
-
-    pctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--vfx-muted').trim();
-    pctx.font = '9px Fira Code';
-    pctx.fillText(frac.toFixed(2), mx - 10, trackY + 18);
+  const vertical = state.vfxMode === 'vertical1d';
+  const entries = state.comparisonGraphs.length
+    ? state.comparisonGraphs.map((graph, index) => ({
+      value: comparisonValue(graph, mainT),
+      color: comparisonColors[index], label: ''
+    }))
+    : [{value: mainY, color: colorPrimary, label: ''}];
+  const graphs = state.comparisonGraphs.length ? state.comparisonGraphs : [captureGraph(state)];
+  const range = applyPos ? trackRange(graphs, entries.map(entry => entry.value)) : {min: 0, max: 1, ticks: [0, .25, .5, .75, 1]};
+  const style = getComputedStyle(document.documentElement);
+  const border = style.getPropertyValue('--vfx-border-strong').trim() || '#39404F';
+  entries.forEach((entry, index) => {
+    const lane = (index + .5) / entries.length;
+    const start = vertical ? {x: w * lane, y: h - 38} : {x: w * .12, y: h * lane};
+    const end = vertical ? {x: w * lane, y: 40} : {x: w * .88, y: h * lane};
+    const point = value => {
+      const fraction = (value - range.min) / (range.max - range.min);
+      return {x: start.x + (end.x - start.x) * fraction, y: start.y + (end.y - start.y) * fraction};
+    };
+    pctx.save();
+    pctx.strokeStyle = border; pctx.lineWidth = 2;
+    pctx.beginPath(); pctx.moveTo(start.x, start.y); pctx.lineTo(end.x, end.y); pctx.stroke();
+    pctx.font = '9px monospace';
+    range.ticks.forEach(frac => {
+      const p = point(frac);
+      pctx.beginPath();
+      pctx.moveTo(p.x - (vertical ? 5 : 0), p.y - (vertical ? 0 : 5));
+      pctx.lineTo(p.x + (vertical ? 5 : 0), p.y + (vertical ? 0 : 5)); pctx.stroke();
+      pctx.fillStyle = style.getPropertyValue('--vfx-muted').trim();
+      pctx.fillText(String(frac), p.x + (vertical ? 8 : -7), p.y + (vertical ? 3 : 16));
+    });
+    pctx.fillStyle = entry.color; pctx.font = 'bold 12px monospace';
+    pctx.fillText(entry.label, vertical ? start.x - 4 : 12, vertical ? 16 : start.y + 4);
+    const value = applyPos ? entry.value : mainT;
+    const p = point(value);
+    // Sample recent shared timeline positions, independent of frame rate and scrubbing direction.
+    pctx.fillStyle = entry.color;
+    for (let i = 1; i <= 12; i++) {
+      const t = mainT - i * .006;
+      if (t < 0) break;
+      let y;
+      if (!applyPos) y = t;
+      else if (state.comparisonGraphs.length) y = comparisonValue(state.comparisonGraphs[index], t);
+      else y = evaluateGraph(t);
+      const trail = point(y);
+      pctx.globalAlpha = (1 - i / 13) * .35;
+      pctx.beginPath(); pctx.arc(trail.x, trail.y, 3, 0, Math.PI * 2); pctx.fill();
+    }
+    pctx.globalAlpha = applyAlpha ? Math.min(1, Math.max(0, entry.value)) : .95;
+    pctx.fillStyle = entry.color; pctx.shadowColor = entry.color; pctx.shadowBlur = 14;
+    const laneSize = (vertical ? w : h) / entries.length;
+    const radius = applyScale ? Math.min(24, Math.max(3, laneSize / 2 - 8), Math.max(3, 5 + entry.value * 9)) : 8;
+    pctx.beginPath(); pctx.arc(p.x, p.y, radius, 0, Math.PI * 2); pctx.fill();
+    pctx.restore();
   });
-
-  const clampedY = applyPos ? mainY : mainT;
-  const currentPx = trackStartX + trackLen * clampedY;
-
-  if (state.isPlaying) state.linearHistory.push({ x: currentPx, y: trackY, t: mainT, valY: mainY });
-  if (state.linearHistory.length > 24 || mainT < 0.02) {
-    if (mainT < 0.02) state.linearHistory = [];
-    else state.linearHistory.shift();
-  }
-
-  const hLen = state.linearHistory.length;
-  for (let i = 0; i < hLen - 1; i++) {
-    const pt = state.linearHistory[i];
-    const f = i / hLen;
-    pctx.fillStyle = `rgba(76, 154, 255, ${f * 0.35})`;
-    pctx.beginPath();
-    pctx.arc(pt.x, trackY, 4 * f, 0, Math.PI * 2);
-    pctx.fill();
-  }
-
-  const pRadius = applyScale ? Math.max(3, 5 + mainY * 9) : 8;
-  const pOpacity = applyAlpha ? Math.min(1, Math.max(0, mainY)) : 0.95;
-
-  pctx.fillStyle = '#ffffff';
-  pctx.shadowColor = colorPrimary;
-  pctx.shadowBlur = 18;
-  pctx.globalAlpha = pOpacity;
-  pctx.beginPath();
-  pctx.arc(currentPx, trackY, pRadius, 0, Math.PI * 2);
-  pctx.fill();
-
-  pctx.restore();
 }
 
 function renderSlash(pctx, w, h, centerX, centerY, mainT, mainY, applyPos, applyScale, applyAlpha, colorPrimary) {

@@ -206,21 +206,28 @@
           
           <!-- Simulation Motion Mode Selector -->
           <div class="vfx-tabs" style="overflow-x: auto; max-width: 100%;">
-            <button onclick="setVfxMotionMode('burst')" id="mode-burst-btn" class="vfx-tab vfx-tab--active">Burst Radial</button>
             <button onclick="setVfxMotionMode('linear1d')" id="mode-linear1d-btn" class="vfx-tab">Left → Right (1P)</button>
+            <button onclick="setVfxMotionMode('vertical1d')" id="mode-vertical1d-btn" class="vfx-tab">Bottom &uarr; Top</button>
+            <button onclick="setVfxMotionMode('burst')" id="mode-burst-btn" class="vfx-tab vfx-tab--active">Burst Radial</button>
             <button onclick="setVfxMotionMode('slash')" id="mode-slash-btn" class="vfx-tab">⚔️ Sword Slash</button>
-            <button onclick="setVfxMotionMode('orbit')" id="mode-orbit-btn" class="vfx-tab">Vortex Orbit</button>
-            <button onclick="setVfxMotionMode('float')" id="mode-float-btn" class="vfx-tab">Float Up</button>
-            <button onclick="setVfxMotionMode('core')" id="mode-core-btn" class="vfx-tab">Core Orb</button>
           </div>
         </div>
 
         <!-- Simulation Viewport Canvas -->
-        <div class="vfx-canvas-wrap" style="height: 208px; display: flex; align-items: center; justify-content: center;">
+        <div class="vfx-canvas-wrap" style="height: 320px; display: flex; align-items: center; justify-content: center;">
           <canvas id="particleCanvas"></canvas>
+          <div id="compare-frames" class="vfx-track-frames"></div>
           <div class="vfx-canvas-badge" style="bottom: 10px; right: 12px; font-family: 'Fira Code', monospace;">
             Output y: <span style="color: var(--vfx-curve-handle-2); font-weight: 700;" id="vfx-val-badge">0.00</span>
           </div>
+        </div>
+
+        <div class="vfx-compare">
+          <div class="vfx-compare-toolbar">
+            <span>Compare timing <span id="compare-count">0/5</span></span>
+            <button id="compare-add" class="vfx-btn">Add graph</button>
+          </div>
+          <p class="vfx-compare-hint">Add the current graph with its latest parameters. Click a track frame to edit; use &times; to remove. Up to 5 graphs.</p>
         </div>
 
         <!-- Particle Simulation Tuning Controls -->
@@ -239,6 +246,14 @@
             </div>
           </div>
           
+          <div class="vfx-speed-control">
+            <label for="speed-slider">Speed</label>
+            <input type="range" id="speed-slider" min="0.05" max="3" step="0.01" value="1" oninput="setPlaybackSpeed(this.value)">
+            <input type="number" id="speed-input" aria-label="Playback speed multiplier" min="0.05" max="3" step="0.01" value="1.00" onchange="setPlaybackSpeed(this.value)">
+            <span>&times;</span>
+            <button class="vfx-btn vfx-btn--ghost" onclick="setPlaybackSpeed(1)" aria-label="Reset playback speed">Reset</button>
+          </div>
+
           <div class="vfx-sim-options">
             <div class="vfx-sim-option">
               <span>Count:</span>
@@ -260,7 +275,7 @@
       </div>
 
       <!-- Shader Code Export & Interactive Node Graph Section -->
-      <div class="vfx-card" style="flex: 1;">
+      <div class="vfx-card">
         <div class="vfx-card__header">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="vfx-card__section-label">
@@ -301,7 +316,7 @@
             </div>
             <!-- Pan/Zoom hint & Reset buttons -->
             <div class="vfx-canvas-badge" style="bottom: 10px; left: 10px; display: flex; align-items: center; gap: 8px; pointer-events: auto;">
-              <span>ลากเพื่อ Pan | Scroll เพื่อ Zoom</span>
+              <span>Drag node to move | Drag background to pan | Scroll to zoom</span>
               <button id="expand-node-graph" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 20px; font-size: 10px;" aria-label="Expand node graph">Expand View</button>
               <button onclick="resetNodeGraphView()" class="vfx-btn vfx-btn--ghost" style="padding: 2px 6px; min-height: 20px; font-size: 10px;">Reset View</button>
             </div>
@@ -320,7 +335,7 @@
         </div>
 
         <!-- VFX Practical Advice Footer -->
-        <div class="vfx-tip" style="margin-top: auto;">
+        <div class="vfx-tip" style="margin-top: 12px;">
           <span class="vfx-tip__icon">💡</span>
           <div>
             <span class="vfx-tip__title" id="preset-tip-title">วิธีนำไปต่อในกราฟ:</span>

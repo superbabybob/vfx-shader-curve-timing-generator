@@ -14,6 +14,7 @@ export const presets = [
   // ── 1. Polynomial & Power Curves (xⁿ, (1-x)ⁿ, Bézier) ──
   {
     id: 'linear',
+    paramNames: [],
     cat: 'polynomial',
     name: 'Linear (เชิงเส้น)',
     type: 'bezier',
@@ -26,6 +27,7 @@ export const presets = [
   },
   {
     id: 'ease-in-quad',
+    paramNames: ["power"],
     cat: 'polynomial',
     name: 'Ease In (Quadratic)',
     type: 'bezier',
@@ -39,6 +41,7 @@ export const presets = [
   },
   {
     id: 'ease-out-quad',
+    paramNames: ["slope"],
     cat: 'polynomial',
     name: 'Ease Out (Quadratic)',
     type: 'bezier',
@@ -52,6 +55,7 @@ export const presets = [
   },
   {
     id: 'ease-in-cubic',
+    paramNames: ["power"],
     cat: 'polynomial',
     name: 'Ease In (Cubic)',
     type: 'bezier',
@@ -65,6 +69,7 @@ export const presets = [
   },
   {
     id: 'ease-out-cubic',
+    paramNames: ["level","end","power"],
     cat: 'polynomial',
     name: 'Ease Out (Cubic)',
     type: 'bezier',
@@ -78,6 +83,7 @@ export const presets = [
   },
   {
     id: 'parabolic-bell',
+    paramNames: ["gain","end"],
     cat: 'polynomial',
     name: 'Parabolic Bell (ระฆังคว่ำ)',
     type: 'expression',
@@ -90,6 +96,7 @@ export const presets = [
   },
   {
     id: 'anticipation-dip',
+    paramNames: ["power","rise","dip"],
     cat: 'polynomial',
     name: 'Anticipation Dip (ถอยง้าง)',
     type: 'bezier',
@@ -102,6 +109,7 @@ export const presets = [
   },
   {
     id: 'overshoot-backout',
+    paramNames: ["cubic","quad","linear"],
     cat: 'polynomial',
     name: 'Back Out (เด้งล้น Overshoot)',
     type: 'bezier',
@@ -116,6 +124,7 @@ export const presets = [
   // ── 2. Hermite & Smoothstep Interpolations ──
   {
     id: 'smoothstep',
+    paramNames: ["start","end"],
     cat: 'hermite',
     name: 'Smoothstep (Hermite S-Curve)',
     type: 'bezier',
@@ -129,6 +138,7 @@ export const presets = [
   },
   {
     id: 'smootherstep',
+    paramNames: ["quint","quart","cubic"],
     cat: 'hermite',
     name: 'Smootherstep (Ken Perlin)',
     type: 'expression',
@@ -141,6 +151,7 @@ export const presets = [
   },
   {
     id: 'subrange-phase2',
+    paramNames: ["start","end"],
     cat: 'hermite',
     name: 'Bounded Smoothstep [0.3, 0.7]',
     type: 'expression',
@@ -156,6 +167,7 @@ export const presets = [
   // ── 3. Trigonometric (Sine & Cosine Waves) ──
   {
     id: 'sine-pulse-half',
+    paramNames: ["cycles"],
     cat: 'trig',
     name: 'Half Sine Arc (0→1→0)',
     type: 'expression',
@@ -168,6 +180,7 @@ export const presets = [
   },
   {
     id: 'sine-wave-cycle',
+    paramNames: ["cycles","amp","bias"],
     cat: 'trig',
     name: 'Full Sine Cycle (0.5→1→0→0.5)',
     type: 'expression',
@@ -180,6 +193,7 @@ export const presets = [
   },
   {
     id: 'lightning-strobe',
+    paramNames: ["cycles","gain","end"],
     cat: 'trig',
     name: 'High-Freq Sine Strobe',
     type: 'expression',
@@ -192,6 +206,7 @@ export const presets = [
   },
   {
     id: 'flicker-torch',
+    paramNames: ["bias","amp","cycles","freq","level","fade"],
     cat: 'exp',
     name: 'Dual Harmonic Sine & Cos',
     type: 'expression',
@@ -204,6 +219,7 @@ export const presets = [
   },
   {
     id: 'heartbeat-double-pulse',
+    paramNames: ["cycles1","sharp1","amp2","delay2","cycles2","sharp2"],
     cat: 'trig',
     name: 'Powered Sine Pulse (Bi-Phase)',
     type: 'expression',
@@ -218,6 +234,7 @@ export const presets = [
   // ── 4. Exponential & Damped Decay (e⁻ᵃᵗ, eᵃᵗ) ──
   {
     id: 'expo-ramp',
+    paramNames: ["rate","offset","normRate","normOffset"],
     cat: 'exp',
     name: 'Exponential Charge (e⁴ᵗ)',
     type: 'expression',
@@ -230,6 +247,7 @@ export const presets = [
   },
   {
     id: 'elastic-bounce',
+    paramNames: ["level","damping","cycles"],
     cat: 'exp',
     name: 'Damped Spring Oscillation',
     type: 'expression',
@@ -242,6 +260,7 @@ export const presets = [
   },
   {
     id: 'heavy-slam-impact',
+    paramNames: ["damping","cycles"],
     cat: 'exp',
     name: 'Damped Impact Wobble',
     type: 'expression',
@@ -256,6 +275,7 @@ export const presets = [
   // ── 5. Piecewise, Saturate & Steps (clamp, min, floor, frac) ──
   {
     id: 'attack-decay-fast',
+    paramNames: ["attack","end","decay"],
     cat: 'piecewise',
     name: 'Bilinear Min Clamp (วาบทันที)',
     type: 'expression',
@@ -268,6 +288,7 @@ export const presets = [
   },
   {
     id: 'subrange-phase1',
+    paramNames: ["duration"],
     cat: 'piecewise',
     name: 'Linear Remap [0.0, 0.4]',
     type: 'expression',
@@ -281,6 +302,7 @@ export const presets = [
   },
   {
     id: 'subrange-phase3',
+    paramNames: ["start","duration"],
     cat: 'piecewise',
     name: 'Offset Linear Remap [0.6, 1.0]',
     type: 'expression',
@@ -294,6 +316,7 @@ export const presets = [
   },
   {
     id: 'multi-hit-sawtooth',
+    paramNames: ["cycles"],
     cat: 'piecewise',
     name: 'Sawtooth Fraction frac(3t)',
     type: 'expression',
@@ -306,6 +329,7 @@ export const presets = [
   },
   {
     id: 'stepped-toon-posterize',
+    paramNames: ["steps","divisor"],
     cat: 'piecewise',
     name: 'Stepped Quantize floor(5t)/4',
     type: 'expression',
@@ -321,6 +345,7 @@ export const presets = [
   // Additional realtime curves: easing, envelopes, waves and timing windows.
   {
     "id": "ease-in-quart",
+    paramNames: ["power"],
     "cat": "polynomial",
     "name": "Ease In (Quartic)",
     "type": "expression",
@@ -332,6 +357,7 @@ export const presets = [
   },
   {
     "id": "ease-out-quart",
+    paramNames: ["level","end","power"],
     "cat": "polynomial",
     "name": "Ease Out (Quartic)",
     "type": "expression",
@@ -343,6 +369,7 @@ export const presets = [
   },
   {
     "id": "ease-in-quint",
+    paramNames: ["power"],
     "cat": "polynomial",
     "name": "Ease In (Quintic)",
     "type": "expression",
@@ -354,6 +381,7 @@ export const presets = [
   },
   {
     "id": "ease-out-quint",
+    paramNames: ["level","end","power"],
     "cat": "polynomial",
     "name": "Ease Out (Quintic)",
     "type": "expression",
@@ -365,6 +393,7 @@ export const presets = [
   },
   {
     "id": "early-pulse",
+    paramNames: ["gain","end","fallPower"],
     "cat": "polynomial",
     "name": "Early Pulse (พุ่งแล้วสลาย)",
     "type": "expression",
@@ -376,6 +405,7 @@ export const presets = [
   },
   {
     "id": "late-pulse",
+    paramNames: ["gain","risePower","end"],
     "cat": "polynomial",
     "name": "Late Pulse (สะสมแล้ววาบ)",
     "type": "expression",
@@ -387,6 +417,7 @@ export const presets = [
   },
   {
     "id": "compact-bell",
+    paramNames: ["gain","end","sharpness"],
     "cat": "polynomial",
     "name": "Compact Bell (พัลส์แคบ)",
     "type": "expression",
@@ -398,6 +429,7 @@ export const presets = [
   },
   {
     "id": "smooth-flash-window",
+    paramNames: ["riseStart","riseEnd","level","fallStart","fallEnd"],
     "cat": "hermite",
     "name": "Smooth Flash Window",
     "type": "expression",
@@ -409,6 +441,7 @@ export const presets = [
   },
   {
     "id": "delayed-ignite",
+    paramNames: ["start","end"],
     "cat": "hermite",
     "name": "Delayed Ignite (ติดไฟช่วงท้าย)",
     "type": "expression",
@@ -420,6 +453,7 @@ export const presets = [
   },
   {
     "id": "smooth-fade-out",
+    paramNames: ["level","start","end"],
     "cat": "hermite",
     "name": "Smooth Fade Out",
     "type": "expression",
@@ -431,6 +465,7 @@ export const presets = [
   },
   {
     "id": "double-flash-window",
+    paramNames: ["rise1Start","rise1End","level1","fall1Start","fall1End","rise2Start","rise2End","level2","fall2Start","fall2End"],
     "cat": "hermite",
     "name": "Double Flash Window",
     "type": "expression",
@@ -442,6 +477,7 @@ export const presets = [
   },
   {
     "id": "cosine-breathing",
+    paramNames: ["bias","amp"],
     "cat": "trig",
     "name": "Cosine Breathing (หายใจหนึ่งรอบ)",
     "type": "expression",
@@ -453,6 +489,7 @@ export const presets = [
   },
   {
     "id": "signed-sine-swing",
+    paramNames: [],
     "cat": "trig",
     "name": "Signed Sine Swing (แกว่งสองทิศ)",
     "type": "expression",
@@ -464,6 +501,7 @@ export const presets = [
   },
   {
     "id": "tapered-ripple",
+    paramNames: ["end","halfCycles"],
     "cat": "trig",
     "name": "Tapered Ripple (สั่นแล้วหยุด)",
     "type": "expression",
@@ -475,6 +513,7 @@ export const presets = [
   },
   {
     "id": "rectified-sine-pulses",
+    paramNames: ["pulses"],
     "cat": "trig",
     "name": "Rectified Sine Pulses",
     "type": "expression",
@@ -486,6 +525,7 @@ export const presets = [
   },
   {
     "id": "exponential-fade",
+    paramNames: ["decay"],
     "cat": "exp",
     "name": "Exponential Fade (ดับเร็ว)",
     "type": "expression",
@@ -497,6 +537,7 @@ export const presets = [
   },
   {
     "id": "impact-envelope",
+    paramNames: ["gain","peak","decay"],
     "cat": "exp",
     "name": "Impact Envelope (พัลส์กระแทก)",
     "type": "expression",
@@ -508,6 +549,7 @@ export const presets = [
   },
   {
     "id": "delayed-impact-envelope",
+    paramNames: ["gain","delay","floor","peak","decay","fadeDelay","fadeFloor"],
     "cat": "exp",
     "name": "Delayed Impact Envelope",
     "type": "expression",
@@ -519,6 +561,7 @@ export const presets = [
   },
   {
     "id": "triangle-pulse",
+    paramNames: ["level","width","center"],
     "cat": "piecewise",
     "name": "Triangle Pulse (พัลส์สามเหลี่ยม)",
     "type": "expression",
@@ -530,6 +573,7 @@ export const presets = [
   },
   {
     "id": "triangle-pulse-train",
+    paramNames: ["level","width","cycles","center"],
     "cat": "piecewise",
     "name": "Triangle Pulse Train",
     "type": "expression",
@@ -541,6 +585,7 @@ export const presets = [
   },
   {
     "id": "hard-gate-window",
+    paramNames: ["start","end"],
     "cat": "piecewise",
     "name": "Hard Gate Window (เปิด–ปิดทันที)",
     "type": "expression",
@@ -552,6 +597,7 @@ export const presets = [
   },
   {
     "id": "flash-hold-decay",
+    paramNames: ["attack","end","decay"],
     "cat": "piecewise",
     "name": "Flash Hold Decay",
     "type": "expression",
@@ -563,6 +609,7 @@ export const presets = [
   },
   {
     "id": "normalized-staircase",
+    paramNames: ["steps","divisor"],
     "cat": "piecewise",
     "name": "Normalized Staircase (0→1)",
     "type": "expression",
@@ -574,6 +621,7 @@ export const presets = [
   },
   {
     "id": "reverse-sawtooth",
+    paramNames: ["level","cycles"],
     "cat": "piecewise",
     "name": "Reverse Sawtooth (ลดแล้วรีเซ็ต)",
     "type": "expression",
